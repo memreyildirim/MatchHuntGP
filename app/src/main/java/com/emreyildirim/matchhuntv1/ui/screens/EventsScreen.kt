@@ -1,0 +1,60 @@
+package com.emreyildirim.matchhuntv1.ui.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.navigation.NavController
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EventsScreen(
+    viewModel: EventViewModel,
+    onNavigateToProfile: (String) -> Unit
+) {
+    val pagerState = rememberPagerState { 2 }
+    val scope = rememberCoroutineScope()
+    
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        TabRow(
+            selectedTabIndex = pagerState.currentPage,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Tab(
+                selected = pagerState.currentPage == 0,
+                onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
+                text = { Text("Find Event") }
+            )
+            Tab(
+                selected = pagerState.currentPage == 1,
+                onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
+                text = { Text("Create Event") }
+            )
+        }
+        
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            when (page) {
+                0 -> FindEventScreen(
+                    viewModel = viewModel,
+                    pagerState = pagerState,
+                    onNavigateToProfile = onNavigateToProfile
+                )
+                1 -> CreateEventScreen(
+                    viewModel = viewModel,
+                    pagerState = pagerState
+                )
+            }
+        }
+    }
+} 

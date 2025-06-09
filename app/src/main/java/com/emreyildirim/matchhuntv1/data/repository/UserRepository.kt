@@ -1,0 +1,180 @@
+package com.emreyildirim.matchhuntv1.data.repository
+
+import android.net.Uri
+import com.emreyildirim.matchhuntv1.data.model.Event
+import com.emreyildirim.matchhuntv1.data.model.UserProfile
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.tasks.await
+import java.util.UUID
+
+class UserRepository {
+    private val auth = FirebaseAuth.getInstance()
+    private val db = FirebaseFirestore.getInstance()
+    private val storage = FirebaseStorage.getInstance()
+    internal val usersCollection = db.collection("users")
+    private val storageRef = storage.reference.child("profile_images")
+    private val eventsCollection = db.collection("events")
+
+
+
+    suspend fun isProfileComplete(userId: String): Boolean {
+        return try {
+            val userDoc = db.collection("users").document(userId).get().await()
+            userDoc.exists() && userDoc.data?.let { data ->
+                data["username"] != null &&
+                data["age"] != null &&
+                data["city"] != null &&
+                data["sports"] != null
+            } ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun createUserProfile(
+        userId: String,
+        username: String,
+        age: Int,
+        city: String,
+        sports: List<String>,
+        about: String = ""
+    ): Boolean {
+        return try {
+            println("Creating user profile with about: $about") // Debug log
+            val userData = hashMapOf(
+                "username" to username,
+                "age" to age,
+                "city" to city,
+                "sports" to sports,
+                "about" to about,
+                "isProfileComplete" to true
+            )
+            println("User data to be saved: $userData") // Debug log
+            usersCollection.document(userId).set(userData).await()
+            println("User profile created successfully") // Debug log
+            true
+        } catch (e: Exception) {
+            println("Error creating user profile: ${e.message}")
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun getUserProfileData(userId: String): Map<String, Any>? {
+        return try {
+            val userDoc = db.collection("users").document(userId).get().await()
+            userDoc.data
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun uploadProfileImage(userId: String, imageUri: Uri): String {
+        try {
+            // Eski fotoğrafı sil
+            val userDoc = usersCollection.document(userId).get().await()
+            val oldPhotoUrl = userDoc.data?.get("profileImageUrl") as? String
+            if (!oldPhotoUrl.isNullOrEmpty()) {
+                try {
+                    deleteProfileImage(oldPhotoUrl)
+                } catch (e: Exception) {
+                    // Eski fotoğraf silinirken hata oluşursa devam et
+                    println("Eski fotoğraf silinirken hata: ${e.message}")
+                }
+            }
+
+            // Yeni fotoğrafı yükle
+            val imageRef = storageRef.child("$userId/${UUID.randomUUID()}")
+            val uploadTask = imageRef.putFile(imageUri).await()
+            return imageRef.downloadUrl.await().toString()
+        } catch (e: Exception) {
+            throw Exception("Profil fotoğrafı yüklenirken bir hata oluştu: ${e.message}")
+        }
+    }
+
+    suspend fun updateProfileImage(userId: String, imageUrl: String) {
+        usersCollection.document(userId)
+            .update("profileImageUrl", imageUrl)
+            .await()
+    }
+
+    suspend fun deleteProfileImage(imageUrl: String) {
+        try {
+            // Firebase Storage'dan fotoğrafı sil
+            val storageRef = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl)
+            storageRef.delete().await()
+        } catch (e: Exception) {
+            // Hata durumunda loglama yapılabilir
+            println("Error deleting profile image: ${e.message}")
+        }
+    }
+
+    suspend fun getEventOwnerId(eventId: String): Result<String> {
+        return try {
+            val eventDoc = eventsCollection.document(eventId).get().await()
+            val creatorId = eventDoc.getString("createdBy")
+            if (creatorId != null) {
+                Result.success(creatorId)
+            } else {
+                Result.failure(Exception("Etkinlik sahibi bulunamadı"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUserName(userId: String): Result<String> {
+        return try {
+            val userDoc = usersCollection.document(userId).get().await()
+            val username = userDoc.getString("username")
+            if (username != null) {
+                Result.success(username)
+            } else {
+                Result.failure(Exception("Kullanıcı adı bulunamadı"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getEvent(eventId: String): Result<Event> {
+        return try {
+            val eventDoc = eventsCollection.document(eventId).get().await()
+            val event = eventDoc.toObject(Event::class.java)
+            if (event != null) {
+                Result.success(event)
+            } else {
+                Result.failure(Exception("Etkinlik bulunamadı"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUserProfile(userId: String): Result<UserProfile> {
+        return try {
+            val userDoc = usersCollection.document(userId).get().await()
+            val userProfile = userDoc.toObject(UserProfile::class.java)
+            if (userProfile != null) {
+                Result.success(userProfile)
+            } else {
+                Result.failure(Exception("Kullanıcı profili bulunamadı"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateEmailVerificationStatus(userId: String, isVerified: Boolean) {
+        try {
+            db.collection("users")
+                .document(userId)
+                .update("isEmailVerified", isVerified)
+                .await()
+        } catch (e: Exception) {
+            throw e
+        }
+    }
+} 

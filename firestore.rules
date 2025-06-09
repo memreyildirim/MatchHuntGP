@@ -1,0 +1,123 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Kullanıcı profilleri için kurallar
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+      // Rating güncellemeleri için ek kural
+      allow update: if request.auth != null && (
+        // Kullanıcı kendi profilini güncelleyebilir
+        request.auth.uid == userId ||
+        // Review oluşturan kullanıcı rating alanlarını güncelleyebilir
+        (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['averageSkillRating', 'averageBehaviorRating', 'averageTeamRating', 'averageRating'])
+        )
+      );
+    }
+    
+    match /posts/{postId} {
+      // Herkes postları okuyabilir
+      allow read: if true;
+      
+      // Sadece oturum açmış kullanıcılar post oluşturabilir
+      allow create: if request.auth != null;
+      
+      // Post sahibi veya beğeni/yorum yapan kullanıcı postu güncelleyebilir
+      allow update: if request.auth != null && (
+        // Post sahibi tüm alanları güncelleyebilir
+        resource.data.userId == request.auth.uid ||
+        // Diğer kullanıcılar sadece likedBy, likes ve comments alanlarını güncelleyebilir
+        (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['likedBy', 'likes', 'comments'])
+        )
+      );
+      
+      // Sadece post sahibi postu silebilir
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    // Yorumlar için kurallar
+    match /comments/{commentId} {
+      // Herkes yorumları okuyabilir
+      allow read: if true;
+      
+      // Sadece oturum açmış kullanıcılar yorum oluşturabilir
+      allow create: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid;
+      
+      // Sadece yorum sahibi yorumu güncelleyebilir
+      allow update: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      
+      // Sadece yorum sahibi yorumu silebilir
+      allow delete: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // Etkinlikler için kurallar
+    match /events/{eventId} {
+      // Herkes etkinlikleri okuyabilir
+      allow read: if true;
+      
+      // Sadece oturum açmış kullanıcılar etkinlik oluşturabilir
+      allow create: if request.auth != null;
+      
+      // Etkinlik güncelleme kuralları
+      allow update: if request.auth != null && (
+        // Etkinlik sahibi tüm alanları güncelleyebilir
+        resource.data.createdBy == request.auth.uid ||
+        // Diğer kullanıcılar sadece participants veya pendingRequests alanlarını güncelleyebilir
+        (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['participants', 'pendingRequests'])
+        )
+      );
+      
+      // Sadece etkinlik sahibi etkinliği silebilir
+      allow delete: if request.auth != null && resource.data.createdBy == request.auth.uid;
+    }
+    
+    // Mesajlar için kurallar
+    match /messages/{messageId} {
+      allow read: if request.auth != null && (
+        resource.data.senderId == request.auth.uid || 
+        resource.data.receiverId == request.auth.uid
+      );
+      allow create: if request.auth != null && (
+        request.resource.data.senderId == request.auth.uid || 
+        request.resource.data.receiverId == request.auth.uid
+      );
+      allow update: if request.auth != null && (
+        resource.data.senderId == request.auth.uid || 
+        resource.data.receiverId == request.auth.uid
+      );
+    }
+
+    // Değerlendirmeler için kurallar
+    match /reviews/{reviewId} {
+      // Herkes değerlendirmeleri okuyabilir
+      allow read: if true;
+      
+      // Sadece oturum açmış kullanıcılar değerlendirme oluşturabilir
+      allow create: if request.auth != null;
+      
+      // Sadece değerlendirmeyi yapan kullanıcı değerlendirmeyi güncelleyebilir veya silebilir
+      allow update, delete: if request.auth != null && resource.data.reviewerId == request.auth.uid;
+    }
+
+    // Son okuma zamanları için kurallar
+    match /lastRead/{readId} {
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.targetUserId == request.auth.uid
+      );
+      allow write: if request.auth != null && (
+        request.resource.data.userId == request.auth.uid || 
+        request.resource.data.targetUserId == request.auth.uid
+      );
+    }
+  }
+}
