@@ -5,6 +5,16 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+/// local.properties dosyasından API key'i oku
+val localPropertiesFile = rootProject.file("local.properties")
+val mapsApiKey = if (localPropertiesFile.exists()) {
+    localPropertiesFile.readLines()
+        .find { it.startsWith("MAPS_API_KEY") }
+        ?.substringAfter("=")
+        ?.trim()
+        ?.removeSurrounding("\"") ?: ""
+} else ""
+
 android {
     namespace = "com.emreyildirim.matchhuntv1"
     compileSdk = 35
@@ -17,6 +27,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // API key'i manifest placeholder olarak ekle
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
     buildTypes {

@@ -1,6 +1,7 @@
 package com.emreyildirim.matchhuntv1.ui.viewmodel
 
 import android.text.format.DateUtils
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.emreyildirim.matchhuntv1.data.model.Event
@@ -635,6 +636,37 @@ class EventViewModel : ViewModel() {
                 _error.value = "Etkinlik güncellenirken bir hata oluştu: ${e.message}"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun deleteEvent(eventId: String) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                _error.value = null
+
+                //giriş yapmış kullanıcıyı getir
+                val currentUser = auth.currentUser
+
+                //gösterilen etkinlği getir
+                val eventDoc = eventsCollection.document(eventId).get().await()
+                val existingEvent = eventDoc.toObject(Event::class.java)
+
+                if (existingEvent?.createdBy != currentUser?.uid) {
+                    _error.value = "Bu etkinliği silme yetkiniz yok"
+                    _isLoading.value = false
+                    return@launch
+                }
+
+
+                eventsCollection.document(eventId).delete().await()
+                Log.d("EventViewModel", "Etkinlik silindi")
+                _toastMessage.value = "Etkinlik başarıyla silindi"
+
+
+            } catch (e: Exception) {
+                _error.value = "Etkinlik silinirken bir hata oluştu: ${e.message}"
             }
         }
     }

@@ -2,6 +2,7 @@ package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.Manifest
 import android.app.TimePickerDialog
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -13,11 +14,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.ui.components.LocationPicker
+import com.emreyildirim.matchhuntv1.ui.theme.ErrorDark
+import com.emreyildirim.matchhuntv1.ui.theme.ErrorLight
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
 import com.emreyildirim.matchhuntv1.utils.Sports
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -227,6 +231,16 @@ fun EditMyEventScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Update Event")
+            }
+
+            //Delete Button
+            Button(onClick = {
+                viewModel.deleteEvent(eventId = event.id)
+                             navController.navigateUp()
+            },
+                colors = ButtonDefaults.buttonColors(containerColor = ErrorLight),
+                modifier = Modifier.fillMaxWidth()) {
+                Text("Delete Event")
             }
         }
     }

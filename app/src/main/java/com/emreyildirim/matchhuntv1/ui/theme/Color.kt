@@ -26,6 +26,9 @@ val OnSecondaryDark = Color(0xFF000000)
 val OnBackgroundDark = Color(0xFFFFFFFF)
 val OnSurfaceDark = Color(0xFFFFFFFF)
 
+val denemeTuruncu = Color(0xFFFF5722)
+val denemeAppYeşil = Color(0xFF71E301)
+
 val Purple80 = Color(0xFF9575CD)
 val PurpleGrey80 = Color(0xFFB39DDB)
 val Pink80 = Color(0xFFBA68C8)
