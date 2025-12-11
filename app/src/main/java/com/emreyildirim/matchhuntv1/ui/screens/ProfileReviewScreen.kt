@@ -80,6 +80,8 @@ fun ProfileReviewScreen(
     
     LaunchedEffect(userId) {
         try {
+
+            viewModel.loadEventsForUserReviewScreen(userId = userId)
             // Kullanıcı profilini getir
             firestore.collection("users")
                 .document(userId)
@@ -111,6 +113,7 @@ fun ProfileReviewScreen(
                         teamRating = reviews.map { it.teamRating }.average().toFloat()
                     }
                 }
+
         } catch (e: Exception) {
             error = e.message ?: "An error occurred while loading profile information"
             isLoading = false

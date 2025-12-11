@@ -150,6 +150,33 @@ class EventViewModel : ViewModel() {
             }
         }
     }
+
+
+    fun loadEventsForUserReviewScreen(userId: String) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                _error.value = null
+
+                val snapshot = firestore.collection("events")
+                    .orderBy("createdAt", Query.Direction.DESCENDING)
+                    .get()
+                    .await()
+
+                val eventsList = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Event::class.java)?.copy(id = doc.id)
+                }.filter { event ->
+                    event.createdBy == userId || event.participants.contains(userId)
+                }
+
+                _events.value = eventsList
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Etkinlikler yüklenirken bir hata oluştu"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
     
     fun refreshEvents() {
         loadEvents()
@@ -226,6 +253,7 @@ class EventViewModel : ViewModel() {
                 
                 if (currentUser != null) {
                     // Get current user's profile information
+                    firestore.collection("users")
                     firestore.collection("users")
                         .document(currentUser.uid)
                         .get()
