@@ -260,17 +260,20 @@ fun CreateProfileScreen(navController: NavController) {
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(Sports.list) { sport ->
+                items(Sports.allSports) { sportInfo ->
+                    val key = sportInfo.nameEn.lowercase()   // "Football" -> "football"
+                    val label = sportInfo.name              // Görünen isim: "Futbol"
+
                     FilterChip(
-                        selected = selectedSports.contains(sport),
+                        selected = selectedSports.contains(key),
                         onClick = {
-                            selectedSports = if (selectedSports.contains(sport)) {
-                                selectedSports - sport
+                            selectedSports = if (selectedSports.contains(key)) {
+                                selectedSports - key
                             } else {
-                                selectedSports + sport
+                                selectedSports + key
                             }
                         },
-                        label = { Text(sport) },
+                        label = { Text(label) },
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }

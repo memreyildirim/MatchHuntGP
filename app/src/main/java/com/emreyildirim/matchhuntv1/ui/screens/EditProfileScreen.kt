@@ -344,40 +344,23 @@ fun EditProfileScreen(navController: NavController) {
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(Sports.list) { sport ->
+                items(Sports.allSports) { sportInfo ->
+                    val key = sportInfo.nameEn.lowercase()   // "Football" -> "football"
+                    val label = sportInfo.name               // ekranda görünen: "Futbol"
+
                     FilterChip(
-                        selected = selectedSports.contains(sport),
+                        selected = selectedSports.contains(key),
                         onClick = {
-                            selectedSports = if (selectedSports.contains(sport)) {
-                                selectedSports - sport
+                            selectedSports = if (selectedSports.contains(key)) {
+                                selectedSports - key
                             } else {
-                                selectedSports + sport
+                                selectedSports + key
                             }
                         },
-                        label = { 
-                            Text(
-                                sport,
-                                style = MaterialTheme.typography.labelMedium
-                            ) 
+                        label = {
+                            Text(label)
                         },
-                        modifier = Modifier
-                            .padding(vertical = 4.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        enabled = true,
-                        leadingIcon = if (selectedSports.contains(sport)) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        } else null
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
             }
@@ -418,7 +401,7 @@ fun EditProfileScreen(navController: NavController) {
                                 username = username,
                                 age = age.toInt(),
                                 city = selectedCity,
-                                sports = selectedSports,
+                                sports = selectedSports.map { it.lowercase() }, // push notif için lowercase save ettik
                                 about = about
                             )
                             

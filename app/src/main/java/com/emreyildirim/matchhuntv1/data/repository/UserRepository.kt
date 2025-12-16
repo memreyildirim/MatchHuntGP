@@ -3,6 +3,7 @@ package com.emreyildirim.matchhuntv1.data.repository
 import android.net.Uri
 import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
+import com.emreyildirim.matchhuntv1.utils.updateSportsTopics
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -42,21 +43,37 @@ class UserRepository {
         about: String = ""
     ): Boolean {
         return try {
+            // 1) Eski spor listesini al (varsa)
+            val existingDoc = usersCollection.document(userId).get().await()
+            val oldSports = (existingDoc.get("sports") as? List<String>) ?: emptyList()
+
+            // 2) Yeni spor listesini normalize et (lowercase)
+            val normalizedSports = sports.map { it.lowercase() }
+
             println("Creating user profile with about: $about") // Debug log
             val userData = hashMapOf(
                 "username" to username,
                 "age" to age,
                 "city" to city,
-                "sports" to sports,
+                "sports" to normalizedSports,
                 "about" to about,
                 "isProfileComplete" to true
             )
             println("User data to be saved: $userData") // Debug log
+
+            // 3) Firestore'a yaz
             usersCollection.document(userId).set(userData).await()
-            println("User profile created successfully") // Debug log
+            println("User profile created/updated successfully") // Debug log
+
+            // 4) Topic aboneliklerini güncelle (unsubscribe + subscribe)
+            updateSportsTopics(
+                oldSports = oldSports,
+                newSports = normalizedSports
+            )
+
             true
         } catch (e: Exception) {
-            println("Error creating user profile: ${e.message}")
+            println("Error creating/updating user profile: ${e.message}")
             e.printStackTrace()
             false
         }

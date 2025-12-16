@@ -76,6 +76,9 @@ fun MessageScreen(
         if (messages.isNotEmpty()) {
             try {
                 listState.animateScrollToItem(0) // reverseLayout true olduğu için 0 en son mesaj
+                if(targetUserId != null){
+                    viewModel.markMessagesAsRead(targetUserId)
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }

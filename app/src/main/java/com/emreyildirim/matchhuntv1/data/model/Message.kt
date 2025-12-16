@@ -1,7 +1,7 @@
 package com.emreyildirim.matchhuntv1.data.model
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.PropertyName
 import java.util.*
 
 data class Message(
@@ -10,7 +10,9 @@ data class Message(
     val receiverId: String = "",
     val text: String = "",
     val timestamp: Date = Date(),
-    val isRead: Boolean = false
+    @get:PropertyName("isRead")
+    @set:PropertyName("isRead")
+    var isRead: Boolean = false
 ) {
     companion object {
         fun fromFirestore(doc: DocumentSnapshot): Message? {
@@ -22,7 +24,7 @@ data class Message(
                     receiverId = doc.getString("receiverId") ?: "",
                     text = doc.getString("text") ?: "",
                     timestamp = timestamp?.toDate() ?: Date(),
-                    isRead = doc.getBoolean("isRead") ?: false
+                    isRead = doc.getBoolean("isRead") ?: doc.getBoolean("isRead") ?: false
                 )
             } catch (e: Exception) {
                 null

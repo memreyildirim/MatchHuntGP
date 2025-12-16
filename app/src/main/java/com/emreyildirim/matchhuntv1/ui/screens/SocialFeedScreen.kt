@@ -233,9 +233,9 @@ fun PostCard(
     var profileImageUrl by remember { mutableStateOf("") }
     var commentText by remember { mutableStateOf("") }
     var showComments by remember { mutableStateOf(false) }
-    var isLiked by remember { mutableStateOf(post.likedBy.contains(currentUserId)) }
-    var likeCount by remember { mutableStateOf(post.likes) }
-    var showLikeAnimation by remember { mutableStateOf(false) }
+    var isLiked by remember(post.id, post.likedBy) { mutableStateOf(post.likedBy.contains(currentUserId)) }
+    var likeCount by remember(post.id, post.likes) { mutableStateOf(post.likes) }
+    var showLikeAnimation by remember(post.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     
     // Çift tıklama için state

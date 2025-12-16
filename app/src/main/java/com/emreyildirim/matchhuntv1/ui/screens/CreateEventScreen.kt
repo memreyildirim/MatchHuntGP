@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.unit.dp
 import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.ui.components.LocationPicker
@@ -51,13 +52,18 @@ fun CreateEventScreen(
 
     var eventTitle by remember { mutableStateOf("") }
     var eventDescription by remember { mutableStateOf("") }
-    var selectedSportType by remember { mutableStateOf("") }
+
     var eventDate by remember { mutableStateOf("") }
     var eventTime by remember { mutableStateOf("") }
     var eventLocation by remember { mutableStateOf("") }
     var maxParticipants by remember { mutableStateOf("") }
     var showLocationPicker by remember { mutableStateOf(false) }
     var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
+    var selectedSportKey by remember { mutableStateOf("") }
+
+// Ekranda göstereceğimiz label:
+    val selectedSportLabel =
+        Sports.getSportInfo(selectedSportKey)?.name ?: ""
     
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -85,7 +91,7 @@ fun CreateEventScreen(
             
             eventTitle = ""
             eventDescription = ""
-            selectedSportType = ""
+            selectedSportKey = ""
             eventDate = ""
             eventTime = ""
             eventLocation = ""
@@ -250,23 +256,23 @@ fun CreateEventScreen(
                 onExpandedChange = { expanded = it }
             ) {
                 OutlinedTextField(
-                    value = selectedSportType,
+                    value = selectedSportLabel,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Event Type") },
                     leadingIcon = {
-                        val sportInfo = Sports.getSportInfo(selectedSportType)
+                        val sportInfo = Sports.getSportInfo(selectedSportKey)
                         if (sportInfo != null) {
                             Icon(
                                 painter = painterResource(id = sportInfo.iconResId),
-                                contentDescription = selectedSportType,
+                                contentDescription = selectedSportLabel,
                                 modifier = Modifier.size(24.dp),
                                 tint = null
                             )
-                        }else{
+                        } else {
                             Icon(
                                 imageVector = Icons.Default.Sports,
-                                contentDescription = selectedSportType,
+                                contentDescription = selectedSportLabel,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -285,8 +291,7 @@ fun CreateEventScreen(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
-                    Sports.allSports.forEach { sport ->
-                        val sportInfo = Sports.getSportInfo(sport.name)
+                    Sports.allSports.forEach { sportInfo ->
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -294,19 +299,17 @@ fun CreateEventScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(sport.nameEn)
-                                    if (sportInfo != null) {
-                                        Icon(
-                                            painter = painterResource(id = sportInfo.iconResId),
-                                            contentDescription = sport.nameEn,
-                                            modifier = Modifier.size(24.dp),
-                                            tint = null
-                                        )
-                                    }
+                                    Text(sportInfo.nameEn) // label: İngilizce ad veya istersen sportInfo.name
+                                    Icon(
+                                        painter = painterResource(id = sportInfo.iconResId),
+                                        contentDescription = sportInfo.nameEn,
+                                        modifier = Modifier.size(24.dp),
+                                        tint = null
+                                    )
                                 }
                             },
                             onClick = {
-                                selectedSportType = sport.name
+                                selectedSportKey = sportInfo.nameEn.lowercase()   // KEY: "football"
                                 expanded = false
                             }
                         )
@@ -453,7 +456,7 @@ fun CreateEventScreen(
                         viewModel.createEvent(
                             title = eventTitle,
                             description = eventDescription,
-                            sportType = selectedSportType,
+                            sportType = selectedSportKey,
                             date = eventDate,
                             time = eventTime,
                             location = eventLocation,
@@ -467,7 +470,7 @@ fun CreateEventScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 enabled = eventTitle.isNotBlank() && 
-                         selectedSportType.isNotBlank() && 
+                         selectedSportKey.isNotBlank() &&
                          eventDescription.isNotBlank() && 
                          eventDate.isNotBlank() && 
                          eventTime.isNotBlank() && 
