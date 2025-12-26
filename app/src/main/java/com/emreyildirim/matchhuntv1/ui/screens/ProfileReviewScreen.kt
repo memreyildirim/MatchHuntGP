@@ -355,17 +355,17 @@ fun ProfileReviewScreen(
                         ) {
                             RatingItem(
                                 rating = skillRating,
-                                label = "Skill"
+                                label = "Beceri"
                             )
                             
                             RatingItem(
                                 rating = behaviorRating,
-                                label = "Behavior"
+                                label = "Davranış"
                             )
                             
                             RatingItem(
                                 rating = teamRating,
-                                label = "Cohesion"
+                                label = "Uyum"
                             )
                         }
 

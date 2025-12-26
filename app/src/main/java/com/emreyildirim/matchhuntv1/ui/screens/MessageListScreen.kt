@@ -15,7 +15,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.emreyildirim.matchhuntv1.data.model.Message
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
@@ -29,7 +28,7 @@ import java.util.*
 fun MessageListScreen(
     onNavigateBack: () -> Unit,
     onNavigateToChat: (String) -> Unit,
-    viewModel: MessageViewModel = viewModel()
+    viewModel: MessageViewModel
 ) {
     val conversations by viewModel.conversations.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()

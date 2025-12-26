@@ -24,6 +24,7 @@ import com.emreyildirim.matchhuntv1.data.repository.UserRepository
 import com.emreyildirim.matchhuntv1.ui.screens.*
 import com.emreyildirim.matchhuntv1.ui.viewmodel.AuthViewModel
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
+import com.emreyildirim.matchhuntv1.ui.viewmodel.MessageViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -39,6 +40,8 @@ fun AppNavigation() {
     var isProfileComplete by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     val authViewModel: AuthViewModel = viewModel()
+    // Mesajlaşma ile ilgili tüm ekranlar için paylaşılan ViewModel
+    val messageViewModel: MessageViewModel = viewModel()
 
     // Profil tamamlama kontrolü ve yönlendirme
     suspend fun checkAndNavigateToNextScreen() {
@@ -153,7 +156,8 @@ fun AppNavigation() {
                 },
                 onNavigateToChat = { userId ->
                     navController.navigate("messages/$userId")
-                }
+                },
+                viewModel = messageViewModel
             )
         }
         composable(
@@ -167,8 +171,8 @@ fun AppNavigation() {
                 onNavigateBack = {
                     navController.navigateUp()
                 },
-
-                targetUserId = userId
+                targetUserId = userId,
+                viewModel = messageViewModel
             )
         }
         composable(

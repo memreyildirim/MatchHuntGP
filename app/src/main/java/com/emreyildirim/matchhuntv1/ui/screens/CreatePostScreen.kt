@@ -152,11 +152,11 @@ fun CreatePostScreen(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
-                    Sports.list.forEach { sport ->
+                    Sports.allSports.forEach { sport ->
                         DropdownMenuItem(
-                            text = { Text(sport) },
+                            text = { Text(sport.nameEn) },
                             onClick = {
-                                selectedSportType = sport
+                                selectedSportType = sport.nameEn.lowercase()
                                 expanded = false
                             }
                         )

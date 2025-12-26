@@ -9,6 +9,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.emreyildirim.matchhuntv1.R
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
@@ -23,7 +24,22 @@ class NotificationService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d("FCM", "New Token: $token")
-        // TODO: Backend e gönder
+
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+
+        FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(uid)
+            .set(
+                mapOf("fcmToken" to token),
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+            .addOnSuccessListener {
+                Log.d("FCM", "Token saved to Firestore")
+            }
+            .addOnFailureListener { e ->
+                Log.e("FCM", "Error saving token: ${e.message}")
+            }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
@@ -34,8 +50,8 @@ class NotificationService : FirebaseMessagingService() {
 
         Log.d("FCM", "Title: $title, Body: $body, data=${message.data}")
 
-        // Eğer bildirim bir etkinlik bildirimi ise, oluşturucuyu kontrol et
-        if (type == "event" && eventId != null) {
+        // Eğer bildirim bir etkinlik bildirimi ise ya da etkinlik güncelleme bildirimi ise, oluşturucuyu kontrol et
+        if ((type == "event" || type == "event_update") && eventId != null) {
             CoroutineScope(Dispatchers.IO).launch {
                 val shouldShow = checkIfShouldShowNotification(eventId)
                 if (shouldShow) {

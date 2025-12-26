@@ -6,6 +6,7 @@ import java.util.*
 
 data class Message(
     val id: String = "",
+    val chatId: String = "",
     val senderId: String = "",
     val receiverId: String = "",
     val text: String = "",
@@ -20,11 +21,12 @@ data class Message(
                 val timestamp = doc.getTimestamp("timestamp")
                 Message(
                     id = doc.id,
+                    chatId = doc.getString("chatId") ?: "",
                     senderId = doc.getString("senderId") ?: "",
                     receiverId = doc.getString("receiverId") ?: "",
                     text = doc.getString("text") ?: "",
                     timestamp = timestamp?.toDate() ?: Date(),
-                    isRead = doc.getBoolean("isRead") ?: doc.getBoolean("isRead") ?: false
+                    isRead = doc.getBoolean("isRead")  ?: false
                 )
             } catch (e: Exception) {
                 null

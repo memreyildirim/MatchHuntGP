@@ -1,6 +1,8 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.net.Uri
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -12,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -25,6 +28,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -179,6 +183,7 @@ fun CreateProfileScreen(navController: NavController) {
             OutlinedTextField(
                 value = age,
                 onValueChange = { age = it },
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
                 label = { Text("Age") },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -299,9 +304,12 @@ fun CreateProfileScreen(navController: NavController) {
                             if (profileImageUri != null) {
                                 photoUrl = userRepository.uploadProfileImage(userId, profileImageUri!!)
                             }
-                            
+
                             // Profil bilgilerini kaydet
-                            val ageInt = age.toIntOrNull() ?: throw Exception("Enter the valid age")
+                            val ageInt = age.toIntOrNull()
+                            if (ageInt == null || ageInt <= 0 || ageInt >= 120) {
+                                throw Exception("Enter the valid age")
+                            }
                             val success = userRepository.createUserProfile(
                                 userId = userId,
                                 username = username,
@@ -325,6 +333,8 @@ fun CreateProfileScreen(navController: NavController) {
                             }
                         } catch (e: Exception) {
                             errorMessage = "An error occurred while creating the profile: ${e.message}"
+                            Log.e("CreateProfileScreen", "Error creating profile", e )
+                            Toast.makeText(context, " ${e.message}", Toast.LENGTH_SHORT).show()
                         } finally {
                             isLoading = false
                         }

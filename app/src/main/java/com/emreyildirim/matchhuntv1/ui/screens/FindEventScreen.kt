@@ -198,9 +198,9 @@ fun FindEventScreen(
                         DropdownMenuItem(
                             text = { Text(sport.nameEn) },
                             onClick = {
-                                selectedSportType = sport.name
+                                selectedSportType = sport.nameEn
                                 expanded = false
-                                viewModel.searchEvents(searchQuery, sport.name)
+                                viewModel.searchEvents(searchQuery, sport.nameEn.lowercase())
                             }
                         )
                     }

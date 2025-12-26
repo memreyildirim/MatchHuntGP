@@ -13,6 +13,7 @@ import java.net.UnknownHostException
 import java.net.SocketTimeoutException
 import java.io.IOException
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
+import com.emreyildirim.matchhuntv1.utils.TokenUpdate
 
 class AuthViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
@@ -60,7 +61,10 @@ class AuthViewModel : ViewModel() {
                 
                 _currentUser.value = auth.currentUser
                 _isEmailVerified.value = true
-                
+
+                // Kullanıcının FCM token'ını güncelle
+                TokenUpdate.updateUserFcmToken()
+
                 // Profil tamamlama durumunu kontrol et
                 val isComplete = userRepository.isProfileComplete(auth.currentUser!!.uid)
                 _isProfileComplete.value = isComplete
@@ -138,6 +142,8 @@ class AuthViewModel : ViewModel() {
             try {
                 val userId = auth.currentUser?.uid ?: return@launch
                 _isProfileComplete.value = userRepository.isProfileComplete(userId)
+                //registerdan sonra email verified ve profile completed ise token updatei yapılıyor firebase
+                TokenUpdate.updateUserFcmToken()
             } catch (e: Exception) {
                 _error.value = handleError(e)
             }

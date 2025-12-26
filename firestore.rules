@@ -82,16 +82,22 @@ service cloud.firestore {
     
     // Mesajlar için kurallar
     match /messages/{messageId} {
+      // OKUMA: Sadece gönderen veya alıcı mesajı görebilir
       allow read: if request.auth != null && (
-        resource.data.senderId == request.auth.uid || 
+        resource.data.senderId == request.auth.uid ||
         resource.data.receiverId == request.auth.uid
       );
-      allow create: if request.auth != null && (
-        request.resource.data.senderId == request.auth.uid || 
-        request.resource.data.receiverId == request.auth.uid
-      );
+
+      // OLUŞTURMA: Sadece kendisi adına mesaj gönderebilir + veri doğrulaması
+      allow create: if request.auth != null
+        && request.resource.data.senderId == request.auth.uid // Mesajı atan kişi ben olmalıyım
+        && request.resource.data.text is string              // Mesaj metin olmalı
+        && request.resource.data.text.size() < 200          // Mesaj çok uzun olmamalı (Maliyet koruması)
+
+
+      // Güncelleme yine sadece ilgili iki kullanıcıya açık
       allow update: if request.auth != null && (
-        resource.data.senderId == request.auth.uid || 
+        resource.data.senderId == request.auth.uid ||
         resource.data.receiverId == request.auth.uid
       );
     }
@@ -100,10 +106,10 @@ service cloud.firestore {
     match /reviews/{reviewId} {
       // Herkes değerlendirmeleri okuyabilir
       allow read: if true;
-      
+
       // Sadece oturum açmış kullanıcılar değerlendirme oluşturabilir
       allow create: if request.auth != null;
-      
+
       // Sadece değerlendirmeyi yapan kullanıcı değerlendirmeyi güncelleyebilir veya silebilir
       allow update, delete: if request.auth != null && resource.data.reviewerId == request.auth.uid;
     }
@@ -111,12 +117,37 @@ service cloud.firestore {
     // Son okuma zamanları için kurallar
     match /lastRead/{readId} {
       allow read: if request.auth != null && (
-        resource.data.userId == request.auth.uid || 
+        resource.data.userId == request.auth.uid ||
         resource.data.targetUserId == request.auth.uid
       );
       allow write: if request.auth != null && (
-        request.resource.data.userId == request.auth.uid || 
+        request.resource.data.userId == request.auth.uid ||
         request.resource.data.targetUserId == request.auth.uid
+      );
+    }
+
+    // Bildirimler için kurallar
+    match /notifications/{notificationId} {
+      // Kullanıcı sadece kendi bildirimlerini okuyabilir
+      allow read: if request.auth != null && (
+        resource.data.receiverId == request.auth.uid
+      );
+
+      // Kullanıcı sadece kendisine bildirim gönderebilir
+      allow create: if request.auth != null && (
+        request.resource.data.receiverId == request.auth.uid ||
+        request.resource.data.senderId == request.auth.uid
+      );
+
+      // Kullanıcı sadece kendi bildirimlerini güncelleyebilir
+      allow update: if request.auth != null && (
+        resource.data.receiverId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+      );
+
+      // Kullanıcı sadece kendi bildirimlerini silebilir
+      allow delete: if request.auth != null && (
+        resource.data.receiverId == request.auth.uid
       );
     }
   }

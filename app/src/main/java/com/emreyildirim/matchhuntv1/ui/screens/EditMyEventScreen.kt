@@ -132,11 +132,11 @@ fun EditMyEventScreen(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
-                    Sports.list.forEach { sport ->
+                    Sports.allSports.forEach { sport ->
                         DropdownMenuItem(
-                            text = { Text(sport) },
+                            text = { Text(sport.nameEn) },
                             onClick = {
-                                selectedSportType = sport
+                                selectedSportType = sport.nameEn.lowercase()
                                 expanded = false
                             }
                         )
@@ -209,6 +209,41 @@ fun EditMyEventScreen(
                         return@Button
                     }
                     
+                    // Validate that date and time are not in the past
+                    try {
+                        val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+                        
+                        val selectedDate = dateFormatter.parse(eventDate)
+                        val selectedTime = timeFormatter.parse(eventTime)
+                        
+                        val selectedCalendar = Calendar.getInstance()
+                        selectedCalendar.time = selectedDate
+                        val timeParts = eventTime.split(":")
+                        selectedCalendar.set(Calendar.HOUR_OF_DAY, timeParts[0].toInt())
+                        selectedCalendar.set(Calendar.MINUTE, timeParts[1].toInt())
+                        selectedCalendar.set(Calendar.SECOND, 0)
+                        selectedCalendar.set(Calendar.MILLISECOND, 0)
+                        
+                        val currentCalendar = Calendar.getInstance()
+                        
+                        if (selectedCalendar.time.before(currentCalendar.time)) {
+                            android.widget.Toast.makeText(
+                                context,
+                                "You cannot set event date and time in the past!",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                            return@Button
+                        }
+                    } catch (e: Exception) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "Invalid date or time format!",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                        return@Button
+                    }
+                    
                     val maxParticipantsInt = maxParticipants.toIntOrNull() ?: return@Button
                     val latitude = selectedLocation?.latitude ?: return@Button
                     val longitude = selectedLocation?.longitude ?: return@Button
@@ -247,18 +282,44 @@ fun EditMyEventScreen(
     
     // Date Picker Dialog
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState()
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis()
+        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            val date = Date(millis)
-                            val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                            eventDate = formatter.format(date)
+                            val selectedDate = Date(millis)
+                            val currentDate = Date()
+                            
+                            val calendar = Calendar.getInstance()
+                            calendar.time = selectedDate
+                            calendar.set(Calendar.HOUR_OF_DAY, 0)
+                            calendar.set(Calendar.MINUTE, 0)
+                            calendar.set(Calendar.SECOND, 0)
+                            calendar.set(Calendar.MILLISECOND, 0)
+                            
+                            val currentCalendar = Calendar.getInstance()
+                            currentCalendar.time = currentDate
+                            currentCalendar.set(Calendar.HOUR_OF_DAY, 0)
+                            currentCalendar.set(Calendar.MINUTE, 0)
+                            currentCalendar.set(Calendar.SECOND, 0)
+                            currentCalendar.set(Calendar.MILLISECOND, 0)
+                            
+                            if (calendar.time.before(currentCalendar.time)) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "You cannot select a past date!",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                                eventDate = formatter.format(selectedDate)
+                                showDatePicker = false
+                            }
                         }
-                        showDatePicker = false
                     }
                 ) {
                     Text("Okey")
@@ -278,17 +339,52 @@ fun EditMyEventScreen(
     if (showTimePicker) {
         val context = LocalContext.current
         val calendar = Calendar.getInstance()
-        val hour = calendar.get(Calendar.HOUR_OF_DAY)
-        val minute = calendar.get(Calendar.MINUTE)
+        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
+        val currentMinute = calendar.get(Calendar.MINUTE)
+        
+        // Parse the selected date to check if it's today
+        val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val selectedDate = try {
+            dateFormatter.parse(eventDate)
+        } catch (e: Exception) {
+            null
+        }
+        
+        val isToday = selectedDate?.let {
+            val selectedCalendar = Calendar.getInstance()
+            selectedCalendar.time = it
+            val currentCalendar = Calendar.getInstance()
+            selectedCalendar.get(Calendar.YEAR) == currentCalendar.get(Calendar.YEAR) &&
+            selectedCalendar.get(Calendar.DAY_OF_YEAR) == currentCalendar.get(Calendar.DAY_OF_YEAR)
+        } ?: false
+        
+        // If the selected date is today, use current time as initial time
+        val initialHour = if (isToday) currentHour else 0
+        val initialMinute = if (isToday) currentMinute else 0
 
         TimePickerDialog(
             context,
             { _, selectedHour, selectedMinute ->
+                // Check if selected time is in the past (only if date is today)
+                if (isToday) {
+                    val selectedTimeInMinutes = selectedHour * 60 + selectedMinute
+                    val currentTimeInMinutes = currentHour * 60 + currentMinute
+                    
+                    if (selectedTimeInMinutes < currentTimeInMinutes) {
+                        android.widget.Toast.makeText(
+                            context,
+                            "You cannot select a past time!",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                        return@TimePickerDialog
+                    }
+                }
+                
                 eventTime = String.format("%02d:%02d", selectedHour, selectedMinute)
                 showTimePicker = false
             },
-            hour,
-            minute,
+            initialHour,
+            initialMinute,
             true
         ).show()
     }

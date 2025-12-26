@@ -6,6 +6,7 @@ import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.utils.updateSportsTopics
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -62,7 +63,7 @@ class UserRepository {
             println("User data to be saved: $userData") // Debug log
 
             // 3) Firestore'a yaz
-            usersCollection.document(userId).set(userData).await()
+            usersCollection.document(userId).set(userData, SetOptions.merge()).await()
             println("User profile created/updated successfully") // Debug log
 
             // 4) Topic aboneliklerini güncelle (unsubscribe + subscribe)
