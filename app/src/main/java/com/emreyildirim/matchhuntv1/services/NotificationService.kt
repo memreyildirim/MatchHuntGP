@@ -25,7 +25,11 @@ class NotificationService : FirebaseMessagingService() {
         super.onNewToken(token)
         Log.d("FCM", "New Token: $token")
 
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val uid = FirebaseAuth.getInstance().currentUser?.uid
+        if (uid == null) {
+            Log.d("FCM", "No user logged in, skipping token save")
+            return
+        }
 
         FirebaseFirestore.getInstance()
             .collection("users")

@@ -14,6 +14,9 @@ import java.net.SocketTimeoutException
 import java.io.IOException
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
 import com.emreyildirim.matchhuntv1.utils.TokenUpdate
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
+import android.util.Log
 
 class AuthViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
@@ -93,10 +96,34 @@ class AuthViewModel : ViewModel() {
     }
     
     fun signOut() {
-        auth.signOut()
-        _currentUser.value = null
-        _isEmailVerified.value = false
-        _isProfileComplete.value = false
+        viewModelScope.launch {
+            try {
+                // Çıkış yapmadan önce kullanıcının UID'sini al
+                val uid = auth.currentUser?.uid
+                
+                // Firebase Auth'tan çıkış yap
+                auth.signOut()
+                _currentUser.value = null
+                _isEmailVerified.value = false
+                _isProfileComplete.value = false
+                
+                // Firestore'daki FCM token'ı sil
+                if (uid != null) {
+                    FirebaseFirestore.getInstance()
+                        .collection("users")
+                        .document(uid)
+                        .update("fcmToken", FieldValue.delete())
+                        .addOnSuccessListener {
+                            Log.d("Auth", "FCM token deleted from Firestore on sign out")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("Auth", "Error deleting FCM token: ${e.message}")
+                        }
+                }
+            } catch (e: Exception) {
+                Log.e("Auth", "Error during sign out: ${e.message}")
+            }
+        }
     }
 
     fun sendVerificationEmail() {
