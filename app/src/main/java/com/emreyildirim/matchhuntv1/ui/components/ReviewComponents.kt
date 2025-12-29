@@ -1,10 +1,14 @@
 package com.emreyildirim.matchhuntv1.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Sports
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,8 +16,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Review
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
 import com.emreyildirim.matchhuntv1.data.repository.EventRepository
@@ -22,38 +30,51 @@ import coil.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Bireysel bir derecelendirme istatistiğini gösteren modernize edilmiş bileşen.
+ */
 @Composable
-fun RatingItem(
+fun RatingDetailItem(
     rating: Float,
     label: String,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
+    Surface(
+        modifier = modifier.padding(4.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Star,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = Color(0xFFFFB300), // Altın sarısı yıldız
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = String.format("%.1f", rating),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
             Text(
-                text = String.format("%.1f", rating),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.padding(start = 4.dp)
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                fontWeight = FontWeight.Medium
             )
         }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-        )
     }
 }
 
@@ -62,130 +83,137 @@ fun ReviewCard(
     review: Review,
     modifier: Modifier = Modifier
 ) {
+    // Repository instanceları (Dışarıdan inject edilmesi önerilir ancak mevcut yapı korundu)
     val userRepository = remember { UserRepository() }
     val eventRepository = remember { EventRepository() }
+
     var reviewerProfileImageUrl by remember { mutableStateOf<String?>(null) }
     var sportType by remember { mutableStateOf<String?>(null) }
-    
-    // Reviewer'ın profil fotoğrafını yükle
+
+    // Reviewer verisini çek
     LaunchedEffect(review.reviewerId) {
         userRepository.getUserProfile(review.reviewerId).onSuccess { profile ->
             reviewerProfileImageUrl = profile.profileImageUrl
         }
     }
-    
-    // Etkinliğin spor türünü yükle
+
+    // Etkinlik detayını çek (Spor türü ve ikon için)
     LaunchedEffect(review.eventId) {
         val event = eventRepository.getEventById(review.eventId)
-        event?.let {
-            sportType = it.sportType
-        }
+        event?.let { sportType = it.sportType }
     }
-    
-    // Tarih formatını ayarla
-    val dateFormat = SimpleDateFormat("dd MMMM yyyy", Locale("tr"))
+
+    val sportInfo = sportType?.let { Sports.getSportInfo(it) }
+    val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale("tr")) }
     val reviewDate = dateFormat.format(Date(review.timestamp))
-    
+
     Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Üst kısım: Profil fotoğrafı, kullanıcı adı ve tarih
+            // Header Bölümü
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Sol taraf: Profil fotoğrafı ve kullanıcı adı
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    // Profil fotoğrafı (Circle)
-                    AsyncImage(
-                        model = reviewerProfileImageUrl,
-                        contentDescription = "Reviewer Profile",
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
+                // Profil Fotoğrafı
+                AsyncImage(
+                    model = reviewerProfileImageUrl,
+                    contentDescription = "Reviewer Profile",
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(id = R.drawable.ic_profile_placeholder)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = review.reviewerName,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    
-                    Spacer(modifier = Modifier.width(12.dp))
-                    
-                    Column {
-                        Text(
-                            text = review.reviewerName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
+
+                    // Spor Türü Etiketi
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        sportInfo?.let { info ->
+                            Text(
+                                text = info.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = info.color,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        } ?: Text(
+                            text = sportType ?: "Etkinlik",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        
-                        // Spor türü
-                        sportType?.let { sport ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = sport,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
                     }
                 }
-                
-                // Sağ taraf: Tarih
+
                 Text(
                     text = reviewDate,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
-            // Puanlar
+
+            // Puanlama Grid Bölümü
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                RatingItem(
+                RatingDetailItem(
                     rating = review.skillRating,
                     label = "Beceri",
                     modifier = Modifier.weight(1f)
                 )
-                
-                RatingItem(
+                RatingDetailItem(
                     rating = review.behaviorRating,
                     label = "Davranış",
                     modifier = Modifier.weight(1f)
                 )
-                
-                RatingItem(
+                RatingDetailItem(
                     rating = review.teamRating,
                     label = "Uyum",
                     modifier = Modifier.weight(1f)
                 )
             }
-            
+
+            // Yorum Bölümü
             if (!review.comment.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = review.comment,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = review.comment,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(12.dp),
+                        lineHeight = 20.sp
+                    )
+                }
             }
         }
     }
-} 
+}

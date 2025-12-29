@@ -1,10 +1,11 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.util.Log
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -12,14 +13,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Message
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.ui.viewmodel.MessageViewModel
@@ -43,81 +52,52 @@ fun MessageScreen(
     val firestore = FirebaseFirestore.getInstance()
     val listState = rememberLazyListState()
     val keyboardController = LocalSoftwareKeyboardController.current
+
     var hasInitialScrollDone by remember { mutableStateOf(false) }
-    // Son görünen mesajın id'sini tutarak, sadece gerçekten yeni mesaj geldiğinde auto-scroll yapacağız
     var lastKnownLastMessageId by remember { mutableStateOf<String?>(null) }
 
-    // Hedef kullanıcının profilini yükle
+    // Hedef profil yükleme
     LaunchedEffect(targetUserId) {
         if (targetUserId != null) {
-            try {
-                firestore.collection("users")
-                    .document(targetUserId)
-                    .get()
-                    .addOnSuccessListener { document ->
-                        targetUserProfile = document.toObject(UserProfile::class.java)
-                    }
-                    .addOnFailureListener { e ->
-                        e.printStackTrace()
-                    }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            firestore.collection("users").document(targetUserId).get()
+                .addOnSuccessListener { targetUserProfile = it.toObject(UserProfile::class.java) }
         }
     }
 
-    // Mesajları yükle + listener başlat + okunmamışları güncelle
+    // Listener ve Mesaj Başlatma
     LaunchedEffect(targetUserId) {
         if (targetUserId != null) {
-            Log.d("MessageScreen", "Setting up chat for userId=$targetUserId")
             viewModel.loadInitialMessages(targetUserId)
             viewModel.startMessageListener(targetUserId)
             viewModel.markMessagesAsRead(targetUserId)
         } else {
-            // targetUserId null ise listener'ı durdur
             viewModel.stopMessageListener()
         }
     }
-    
-    // Ekran görünürken listener'ın aktif olduğundan emin ol
-    DisposableEffect(targetUserId) {
-        if (targetUserId != null) {
-            Log.d("MessageScreen", "MessageScreen entered for userId=$targetUserId")
-            // Listener zaten LaunchedEffect'te başlatılıyor, burada sadece kontrol ediyoruz
-            onDispose {
-                Log.d("MessageScreen", "MessageScreen disposed for userId=$targetUserId")
-                // Ekran kapandığında listener'ı durdurma - ViewModel'de yönetiliyor
-                // Sadece chat değiştiğinde durdurulacak
-            }
-        }
-        onDispose { }
-    }
 
-    // Listenin tepesine ulaşıldığında daha eski mesajları yükle
+    // Pagination: Listenin tepesine ulaşıldığında eski mesajları yükle
     LaunchedEffect(listState, isLoading, messages.size, targetUserId) {
         if (targetUserId == null) return@LaunchedEffect
 
         snapshotFlow { listState.firstVisibleItemIndex }
             .collectLatest { index ->
-                // İlk açılışta henüz son mesaja scroll etmeden pagination tetikleme
                 if (!hasInitialScrollDone) return@collectLatest
 
-                // Listenin en üstündeysek (en eski mesajlar tarafı)
+                // Listenin en üstündeysek ve yükleme yapılmıyorsa
                 if (index == 0 && !isLoading && messages.isNotEmpty()) {
                     viewModel.loadMoreMessages()
-                    Log.d("MessageScreen", "Loading more messages")
                 }
             }
     }
 
-    // Mesajlar yüklendiğinde / değiştiğinde scroll davranışı
+    // Akıllı Scroll Yönetimi
     LaunchedEffect(messages.size) {
         if (messages.isEmpty()) return@LaunchedEffect
 
         try {
             val currentLastId = messages.last().id
 
-            // 1) İlk yüklemede: her durumda en alta git, pagination'ı tetikleyene kadar hasInitialScrollDone=false idi
+            // 1) İlk yüklemede: her durumda en alta git
             if (!hasInitialScrollDone) {
                 listState.scrollToItem(messages.lastIndex)
                 hasInitialScrollDone = true
@@ -128,14 +108,12 @@ fun MessageScreen(
                 return@LaunchedEffect
             }
 
-            // 2) Pagination: eski mesajlar liste başına eklenir, son mesaj aynı kalır → lastId değişmez.
-            //    Bu durumda hiçbir şey yapma ki kullanıcı en üstte kalabilsin.
+            // 2) Pagination: eski mesajlar eklendiyse (son mesaj aynıysa) scroll etme
             if (lastKnownLastMessageId == currentLastId) {
                 return@LaunchedEffect
             }
 
-            // 3) Gerçekten yeni bir mesaj eklendi (gönderilen ya da alınan)
-            //    Kullanıcı chat ekranındayken otomatik olarak en alta scroll et.
+            // 3) Yeni mesaj geldi: en alta kaydır
             listState.animateScrollToItem(messages.lastIndex)
             lastKnownLastMessageId = currentLastId
 
@@ -147,80 +125,108 @@ fun MessageScreen(
         }
     }
 
+    val chatBackground = Brush.verticalGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+            MaterialTheme.colorScheme.surface
+        )
+    )
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
-                    if (targetUserId != null) {
-                        Text(targetUserProfile?.username ?: "Messages")
-                    } else {
-                        Text("Messages")
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            AsyncImage(
+                                model = targetUserProfile?.profileImageUrl,
+                                contentDescription = null,
+                                modifier = Modifier.clip(CircleShape),
+                                contentScale = ContentScale.Crop,
+                                error = painterResource(id = R.drawable.ic_profile_placeholder)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Text(
+                            text = targetUserProfile?.username ?: "Yükleniyor...",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
                     }
-                }
+                },
+                actions = {
+                    IconButton(onClick = { /* Sohbet Seçenekleri */ }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = null)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                )
             )
         }
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
+                .padding(top = paddingValues.calculateTopPadding())
+                .background(chatBackground)
         ) {
-            // Eğer hiç mesaj yoksa ve yükleniyorsa: tam ekran loader
-            if (isLoading && messages.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            // Mesajlar Listesi
+            // Mesaj Listesi
             LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
-                    .padding(bottom = 80.dp)
+                    .imePadding(),
+                contentPadding = PaddingValues(
+                    bottom = 96.dp,
+                    top = 8.dp,
+                    start = 12.dp,
+                    end = 12.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Pagination sırasında, listenin en üstünde küçük bir loader göster
+                // Üst Pagination Loader'ı
                 if (isLoading && messages.isNotEmpty()) {
                     item(key = "top_loader") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                         }
                     }
                 }
 
-                // messages zaten eski → yeni sıralı, en yeni mesaj en altta görünecek
-                // key vererek, tepeye eski mesaj eklendiğinde scroll pozisyonunun korunmasını sağlıyoruz
                 items(
                     items = messages,
-                    key = { message -> message.id }
+                    key = { it.id }
                 ) { message ->
-                    MessageItem(message = message)
-                    Spacer(modifier = Modifier.height(4.dp))
+                    ModernMessageItem(message = message)
                 }
             }
 
-            // Mesaj Girişi
+            // --- YÜZER GİRİŞ ALANI (Floating Input) ---
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .fillMaxWidth(),
+                    .padding(horizontal = 16.dp)
+                    .navigationBarsPadding()
+                    .imePadding(),
+                shape = RoundedCornerShape(28.dp),
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 3.dp
+                tonalElevation = 6.dp,
+                shadowElevation = 8.dp
             ) {
                 Row(
                     modifier = Modifier
@@ -228,40 +234,38 @@ fun MessageScreen(
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
+                    TextField(
                         value = messageText,
                         onValueChange = { messageText = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp),
-                        placeholder = { Text("Write a message...") },
-                        maxLines = 4,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Mesaj yaz...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
                         ),
-                        shape = RoundedCornerShape(24.dp)
+                        maxLines = 4
                     )
-                    
-                    IconButton(
+
+                    FilledIconButton(
                         onClick = {
                             if (messageText.isNotBlank() && targetUserId != null) {
                                 viewModel.sendMessage(messageText, targetUserId)
                                 messageText = ""
                             }
                         },
-                        enabled = messageText.isNotBlank() && !isLoading && targetUserId != null,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(
-                                MaterialTheme.colorScheme.primary,
-                                CircleShape
-                            )
+                        enabled = messageText.isNotBlank() && targetUserId != null && !isLoading,
+                        modifier = Modifier.size(44.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Send",
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Gönder",
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -271,52 +275,45 @@ fun MessageScreen(
 }
 
 @Composable
-fun MessageItem(message: Message) {
-    val auth = FirebaseAuth.getInstance()
-    val currentUserId = auth.currentUser?.uid ?: ""
+fun ModernMessageItem(message: Message) {
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val isCurrentUser = message.senderId == currentUserId
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 2.dp),
-        horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = if (isCurrentUser) Alignment.CenterEnd else Alignment.CenterStart
     ) {
-        Surface(
-            modifier = Modifier
-                .widthIn(max = 340.dp),
-            shape = RoundedCornerShape(
-                topStart = 16.dp,
-                topEnd = 16.dp,
-                bottomStart = if (isCurrentUser) 16.dp else 4.dp,
-                bottomEnd = if (isCurrentUser) 4.dp else 16.dp
-            ),
-            color = if (isCurrentUser) 
-                MaterialTheme.colorScheme.primary 
-            else 
-                MaterialTheme.colorScheme.surfaceVariant
+        Column(
+            horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
         ) {
-            Column(
-                modifier = Modifier.padding(12.dp)
+            Surface(
+                color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(
+                    topStart = 20.dp,
+                    topEnd = 20.dp,
+                    bottomStart = if (isCurrentUser) 20.dp else 4.dp,
+                    bottomEnd = if (isCurrentUser) 4.dp else 20.dp
+                ),
+                tonalElevation = if (isCurrentUser) 0.dp else 2.dp,
+                modifier = Modifier.widthIn(max = 300.dp)
             ) {
-                Text(
-                    text = message.text,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (isCurrentUser) 
-                        MaterialTheme.colorScheme.onPrimary 
-                    else 
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(message.timestamp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isCurrentUser) 
-                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) 
-                    else 
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.align(Alignment.End)
-                )
+                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    Text(
+                        text = message.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(message.timestamp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = (if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.6f),
+                        modifier = Modifier.align(Alignment.End)
+                    )
+                }
             }
         }
     }
-} 
+}

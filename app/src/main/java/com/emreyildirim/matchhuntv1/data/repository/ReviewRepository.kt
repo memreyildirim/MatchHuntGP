@@ -36,15 +36,23 @@ class ReviewRepository {
 
     suspend fun getUserReviews(userId: String): List<Review> {
         return try {
-            val reviews = mutableListOf<Review>()
             val reviewsSnapshot = reviewsCollection
                 .whereEqualTo("reviewedUserId", userId)
                 .get()
                 .await()
 
+            // Tüm reviewer ID'lerini topla (unique)
+            val reviewerIds = reviewsSnapshot.documents
+                .mapNotNull { it.getString("reviewerId") }
+                .distinct()
+
+            // Tüm reviewer isimlerini paralel olarak al (N+1 query problemini çöz)
+            val reviewerNames = userRepository.getUserNames(reviewerIds)
+
+            // Review'ları oluştur
             val sortedReviews = reviewsSnapshot.documents.mapNotNull { reviewDoc ->
                 val reviewerId = reviewDoc.getString("reviewerId") ?: return@mapNotNull null
-                val reviewerName = userRepository.getUserName(reviewerId).getOrNull() ?: "Anonim"
+                val reviewerName = reviewerNames[reviewerId] ?: "Anonim"
                 val timestamp = reviewDoc.getLong("timestamp") ?: System.currentTimeMillis()
 
                 Review(
@@ -61,8 +69,7 @@ class ReviewRepository {
                 )
             }.sortedByDescending { it.timestamp }
 
-            reviews.addAll(sortedReviews)
-            reviews
+            sortedReviews
         } catch (e: Exception) {
             println("Error getting user reviews: ${e.message}")
             emptyList()
@@ -156,6 +163,60 @@ class ReviewRepository {
             )
         } catch (e: Exception) {
             println("Error getting user ratings: ${e.message}")
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    // getUserRatings ve getTotalReviews'i birleştiren optimize edilmiş fonksiyon
+    suspend fun getUserRatingsAndCount(userId: String): Result<Pair<Map<String, Float>, Int>> {
+        return try {
+            // Kullanıcının tüm değerlendirmelerini al (sadece bir kez)
+            val reviews = getUserReviews(userId)
+            
+            if (reviews.isEmpty()) {
+                return Result.success(
+                    Pair(
+                        mapOf(
+                            "skill" to 0f,
+                            "behavior" to 0f,
+                            "team" to 0f,
+                            "average" to 0f
+                        ),
+                        0
+                    )
+                )
+            }
+
+            // Değerlendirmelerden ortalama puanları hesapla
+            val averageSkillRating = reviews.map { it.skillRating }.average().toFloat()
+            val averageBehaviorRating = reviews.map { it.behaviorRating }.average().toFloat()
+            val averageTeamRating = reviews.map { it.teamRating }.average().toFloat()
+            val averageRating = reviews.map { it.averageRating }.average().toFloat()
+
+            val ratings = mapOf(
+                "skill" to averageSkillRating,
+                "behavior" to averageBehaviorRating,
+                "team" to averageTeamRating,
+                "average" to averageRating
+            )
+
+            // Kullanıcı dokümanını güncelle
+            usersCollection.document(userId)
+                .set(
+                    mapOf(
+                        "averageSkillRating" to averageSkillRating,
+                        "averageBehaviorRating" to averageBehaviorRating,
+                        "averageTeamRating" to averageTeamRating,
+                        "averageRating" to averageRating
+                    ),
+                    com.google.firebase.firestore.SetOptions.merge()
+                )
+                .await()
+
+            Result.success(Pair(ratings, reviews.size))
+        } catch (e: Exception) {
+            println("Error getting user ratings and count: ${e.message}")
             e.printStackTrace()
             Result.failure(e)
         }

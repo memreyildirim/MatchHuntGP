@@ -1,10 +1,11 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.util.Log
+import androidx.compose.animation.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
@@ -14,11 +15,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.ui.viewmodel.ReviewViewModel
@@ -37,41 +45,36 @@ fun ProfileRatingScreen(
     var behaviorRating by remember { mutableStateOf(0f) }
     var teamRating by remember { mutableStateOf(0f) }
     var comment by remember { mutableStateOf("") }
+
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val reviewSubmitted by viewModel.reviewSubmitted.collectAsState()
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
-    
-    // Debug için log ekleyelim
-    LaunchedEffect(Unit) {
-        Log.d("ProfileRatingScreen", "Screen opened. EventId: $eventId, ParticipantId: $participantId")
-    }
-    
-    // Etkinlik ve kullanıcı bilgilerini yükle
+
+    // Veri yükleme state'leri
     var event by remember { mutableStateOf<Event?>(null) }
     var userProfile by remember { mutableStateOf<UserProfile?>(null) }
     val userRepository = remember { UserRepository() }
-    
+
+    // Gradyan Arka Plan (Diğer ekranlarla uyumlu)
+    val backgroundGradient = Brush.verticalGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.surface
+        )
+    )
+
     LaunchedEffect(eventId, participantId) {
         scope.launch {
-            // Etkinlik bilgilerini yükle
             userRepository.getEvent(eventId).onSuccess { loadedEvent ->
                 event = loadedEvent
-                // Değerlendirilecek kullanıcının bilgilerini yükle
-                if (participantId != null && participantId.isNotEmpty()) {
-                    Log.d("ProfileRatingScreen", "Kullanıcı profili yükleniyor. TargetUserId: $participantId")
-                    userRepository.getUserProfile(participantId).onSuccess { profile ->
-                        userProfile = profile
-                        Log.d("ProfileRatingScreen", "Kullanıcı profili yüklendi: ${profile.username}")
-                    }
-                } else {
-                    Log.d("ProfileRatingScreen", "Etkinlik sahibi profili yükleniyor. TargetUserId: ${loadedEvent.createdBy}")
-                    userRepository.getUserProfile(loadedEvent.createdBy).onSuccess { profile ->
-                        userProfile = profile
-                        Log.d("ProfileRatingScreen", "Etkinlik sahibi profili yüklendi: ${profile.username}")
-                    }
+                val targetId = participantId?.takeIf { it.isNotEmpty() } ?: loadedEvent.createdBy
+                userRepository.getUserProfile(targetId).onSuccess { profile ->
+                    userProfile = profile
                 }
             }
         }
@@ -79,199 +82,223 @@ fun ProfileRatingScreen(
 
     LaunchedEffect(reviewSubmitted) {
         if (reviewSubmitted) {
-            snackbarHostState.showSnackbar(
-                message = "Your evaluation has been saved successfully",
-                duration = SnackbarDuration.Short
-            )
+            snackbarHostState.showSnackbar("Değerlendirmeniz kaydedildi.")
             onNavigateBack()
-        }
-    }
-
-    LaunchedEffect(error) {
-        if (error != null) {
-            viewModel.resetReviewSubmitted()
         }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
+            CenterAlignedTopAppBar(
+                title = {
                     Text(
-                        text = if (participantId != null) "Rate Participant" else "Rate the Event Owner"
+                        text = if (participantId != null) "Katılımcıyı Puanla" else "Düzenleyeni Puanla",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(backgroundGradient)
                 .padding(paddingValues)
-                .verticalScroll(scrollState)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Etkinlik sahibi bilgileri
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --- HEDEF KULLANICI KARTI ---
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .shadow(8.dp, RoundedCornerShape(24.dp)),
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surface
                 ) {
-                    // Profil fotoğrafı
-                    AsyncImage(
-                        model = userProfile?.profileImageUrl,
-                        contentDescription = "Profile Photo",
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                    
-                    // Kullanıcı adı
-                    Text(
-                        text = userProfile?.username ?: "User",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    
-                    // Etkinlik bilgileri
-                    event?.let { currentEvent ->
-                        Text(
-                            text = currentEvent.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        AsyncImage(
+                            model = userProfile?.profileImageUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(90.dp)
+                                .clip(CircleShape)
+                                .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape),
+                            contentScale = ContentScale.Crop,
+                            error = painterResource(id = R.drawable.ic_profile_placeholder)
                         )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
                         Text(
-                            text = "${currentEvent.date} - ${currentEvent.time}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = userProfile?.username ?: "Yükleniyor...",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
                         )
+
+                        event?.let { currentEvent ->
+                            Text(
+                                text = currentEvent.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                            // Tarih ve Saat Bilgisi Eklendi
+                            Text(
+                                text = "${currentEvent.date} • ${currentEvent.time}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
                     }
                 }
-            }
 
-            // Beceri/Yetenek Puanı
-            Text(
-                text = "Skill/Ability Points",
-                style = MaterialTheme.typography.titleMedium
-            )
-            RatingBar(
-                rating = skillRating,
-                onRatingChanged = { skillRating = it }
-            )
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Davranış/Saygı Puanı
-            Text(
-                text = "Behavior/Respect Score",
-                style = MaterialTheme.typography.titleMedium
-            )
-            RatingBar(
-                rating = behaviorRating,
-                onRatingChanged = { behaviorRating = it }
-            )
-
-            // Uyum/Takım İletişimi Puanı
-            Text(
-                text = "Cohesion/Team Communication Score",
-                style = MaterialTheme.typography.titleMedium
-            )
-            RatingBar(
-                rating = teamRating,
-                onRatingChanged = { teamRating = it }
-            )
-
-            // Yorum
-            OutlinedTextField(
-                value = comment,
-                onValueChange = { comment = it },
-                label = { Text("Comment") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                maxLines = 5
-            )
-
-            // Değerlendirme Gönder Butonu
-            Button(
-                onClick = {
-                    if (participantId != null) {
-                        viewModel.submitParticipantReview(
-                            eventId = eventId,
-                            participantId = participantId,
-                            skillRating = skillRating,
-                            behaviorRating = behaviorRating,
-                            teamRating = teamRating,
-                            comment = comment
-                        )
-                    } else {
-                        viewModel.submitReview(
-                            eventId = eventId,
-                            skillRating = skillRating,
-                            behaviorRating = behaviorRating,
-                            teamRating = teamRating,
-                            comment = comment
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && skillRating > 0 && behaviorRating > 0 && teamRating > 0
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
-                    Text("Submit Review")
-                }
-            }
-
-            // Hata mesajı
-            error?.let { errorMessage ->
-                Text(
-                    text = errorMessage,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
+                // --- PUANLAMA ALANI ---
+                RatingSectionCard(
+                    title = "Beceri & Yetenek",
+                    rating = skillRating,
+                    onRatingChanged = { skillRating = it }
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                RatingSectionCard(
+                    title = "Davranış & Saygı",
+                    rating = behaviorRating,
+                    onRatingChanged = { behaviorRating = it }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                RatingSectionCard(
+                    title = "Uyum & Takım İletişimi",
+                    rating = teamRating,
+                    onRatingChanged = { teamRating = it }
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- YORUM ALANI ---
+                OutlinedTextField(
+                    value = comment,
+                    onValueChange = { comment = it },
+                    label = { Text("Yorumunuz (İsteğe bağlı)") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(2.dp, RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                    minLines = 3
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // --- GÖNDER BUTONU ---
+                Button(
+                    onClick = {
+                        if (participantId != null) {
+                            viewModel.submitParticipantReview(eventId, participantId, skillRating, behaviorRating, teamRating, comment)
+                        } else {
+                            viewModel.submitReview(eventId, skillRating, behaviorRating, teamRating, comment)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .shadow(4.dp, RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = !isLoading && skillRating > 0 && behaviorRating > 0 && teamRating > 0
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                    } else {
+                        Text("Değerlendirmeyi Gönder", style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
 }
 
 @Composable
-fun RatingBar(
+fun RatingSectionCard(
+    title: String,
+    rating: Float,
+    onRatingChanged: (Float) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            ModernRatingBar(
+                rating = rating,
+                onRatingChanged = onRatingChanged
+            )
+        }
+    }
+}
+
+@Composable
+fun ModernRatingBar(
     rating: Float,
     onRatingChanged: (Float) -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
+        horizontalArrangement = Arrangement.Center
     ) {
         for (i in 1..5) {
+            val isSelected = i <= rating
             IconButton(
-                onClick = { onRatingChanged(i.toFloat()) }
+                onClick = { onRatingChanged(i.toFloat()) },
+                modifier = Modifier.size(48.dp)
             ) {
                 Icon(
-                    imageVector = if (i <= rating) Icons.Filled.Star else Icons.Outlined.Star,
-                    contentDescription = "Rating $i",
-                    tint = if (i <= rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    imageVector = if (isSelected) Icons.Filled.Star else Icons.Outlined.Star,
+                    contentDescription = null,
+                    tint = if (isSelected) Color(0xFFFFB400) else MaterialTheme.colorScheme.outlineVariant,
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
     }
-} 
+}

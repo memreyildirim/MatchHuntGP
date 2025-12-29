@@ -1,28 +1,27 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.util.Log
-import androidx.compose.foundation.background
+import androidx.compose.animation.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Sports
+import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -30,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Event
@@ -37,17 +37,9 @@ import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.data.model.Review
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.launch
-import com.emreyildirim.matchhuntv1.data.repository.ReviewRepository
-import androidx.compose.foundation.clickable
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.automirrored.filled.Message
-import com.emreyildirim.matchhuntv1.ui.components.RatingItem
-import com.emreyildirim.matchhuntv1.ui.components.ReviewCard
 import com.emreyildirim.matchhuntv1.utils.Sports
-import androidx.navigation.NavController
+import com.emreyildirim.matchhuntv1.ui.components.ReviewCard
+import com.emreyildirim.matchhuntv1.utils.RatingCard.RatingStatItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,78 +49,76 @@ fun ProfileReviewScreen(
     onNavigateBack: () -> Unit,
     navController: NavController
 ) {
+    // Veri State'leri
     var userProfile by remember { mutableStateOf<UserProfile?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
     var userReviews by remember { mutableStateOf<List<Review>>(emptyList()) }
-    var showReviewsSheet by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
     var skillRating by remember { mutableStateOf(0f) }
     var behaviorRating by remember { mutableStateOf(0f) }
     var teamRating by remember { mutableStateOf(0f) }
-    val scope = rememberCoroutineScope()
-    val firestore = FirebaseFirestore.getInstance()
-    val reviewRepository = remember { ReviewRepository() }
-    
-    val events by viewModel.events.collectAsState()
-    val createdEvents = remember(events) { events.filter { it.createdBy == userId } }
-    val participatedEvents = remember(events) { events.filter { it.participants.contains(userId) } }
 
+    // Genel ortalama hesaplama
+    val averageRating = remember(skillRating, behaviorRating, teamRating) {
+        if (skillRating > 0 || behaviorRating > 0 || teamRating > 0) {
+            (skillRating + behaviorRating + teamRating) / 3f
+        } else 0f
+    }
+
+    val scrollState = rememberScrollState()
     val bottomSheetState = rememberModalBottomSheetState()
+    var showReviewsSheet by remember { mutableStateOf(false) }
 
-    // TODO: İlgi alanları, biyografi, yorumlar gibi ek alanlar UserProfile modeline eklenmeli
-    // TODO: Kullanıcıyı takip etme fonksiyonları eklenmeli
-    
+    // Etkinlik Verileri
+    val events by viewModel.events.collectAsState()
+    val createdEvents = remember(events, userId) { events.filter { it.createdBy == userId } }
+    val participatedEvents = remember(events, userId) { events.filter { it.participants.contains(userId) } }
+
+    // Veri Çekme Mantığı
     LaunchedEffect(userId) {
+        val firestore = FirebaseFirestore.getInstance()
         try {
-
             viewModel.loadEventsForUserReviewScreen(userId = userId)
-            // Kullanıcı profilini getir
-            firestore.collection("users")
-                .document(userId)
-                .get()
+
+            firestore.collection("users").document(userId).get()
                 .addOnSuccessListener { document ->
                     val photoUrl = document.getString("profileImageUrl") ?: document.getString("photoUrl")
                     userProfile = document.toObject(UserProfile::class.java)?.copy(profileImageUrl = photoUrl ?: "")
-                    Log.d("ProfileReview", "Photo URL: $photoUrl")
-                    Log.d("ProfileReview", "User Profile: $userProfile")
-                    isLoading = false
-                }
-                .addOnFailureListener { exception ->
-                    error = exception.message ?: "An error occurred while loading profile information"
                     isLoading = false
                 }
 
-            // Kullanıcının değerlendirmelerini getir
-            firestore.collection("reviews")
-                .whereEqualTo("reviewedUserId", userId)
-                .get()
+            firestore.collection("reviews").whereEqualTo("reviewedUserId", userId).get()
                 .addOnSuccessListener { documents ->
                     val reviews = documents.toObjects(Review::class.java)
                     userReviews = reviews
-                    
-                    // Ortalama puanları hesapla
                     if (reviews.isNotEmpty()) {
                         skillRating = reviews.map { it.skillRating }.average().toFloat()
                         behaviorRating = reviews.map { it.behaviorRating }.average().toFloat()
                         teamRating = reviews.map { it.teamRating }.average().toFloat()
                     }
                 }
-
         } catch (e: Exception) {
-            error = e.message ?: "An error occurred while loading profile information"
             isLoading = false
         }
     }
-    
+
+    val backgroundGradient = Brush.verticalGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.surface
+        )
+    )
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("User Profile") },
+            CenterAlignedTopAppBar(
+                title = { Text("User Profile", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { paddingValues ->
@@ -136,319 +126,149 @@ fun ProfileReviewScreen(
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-        } else if (error != null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = error ?: "Bilinmeyen hata", color = Color.Red)
-            }
         } else {
-            userProfile?.let { profile ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(backgroundGradient)
+                    .padding(paddingValues)
+            ) {
                 Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                        .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                        .padding(horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Profil Başlığı ve Bilgileri
-                    Row(
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    ProfileHeaderSection(
+                        profileImageUrl = userProfile?.profileImageUrl ?: "",
+                        username = userProfile?.username ?: "Unknown User",
+                        location = userProfile?.city ?: "Location not set",
+                        onMessageClick = { navController.navigate("messages/${userId}") }
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // --- İSTEDİĞİN MODERN RATING KARTI TASARIMI ---
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .shadow(12.dp, RoundedCornerShape(24.dp)),
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     ) {
-                        // Profil Fotoğrafı
-                        if (profile.profileImageUrl.isNotEmpty()) {
-                        AsyncImage(
-                                model = profile.profileImageUrl,
-                            contentDescription = "Profile Photo",
-                            modifier = Modifier
-                                    .size(100.dp)
-                                .clip(CircleShape),
-                                contentScale = ContentScale.Crop,
-                                error = painterResource(id = R.drawable.ic_profile_placeholder),
-                                onError = { Log.e("ProfileReview", "Error loading image: ${profile.profileImageUrl}") }
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                                modifier = Modifier.size(100.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    
-                        // Kullanıcı Bilgileri
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    text = profile.username,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                
-                                Column(
-                                    horizontalAlignment = Alignment.End,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                // Sol Kısım: Ortalama Puan Başlığı ve Değeri
+                                Column {
+                                    Text(
+                                        text = "Overall Rating",
+                                        color = Color.Gray,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Row(verticalAlignment = Alignment.Bottom) {
+                                        Text(
+                                            text = if (averageRating > 0) String.format("%.1f", averageRating) else "—",
+                                            style = MaterialTheme.typography.headlineMedium.copy(
+                                                fontWeight = FontWeight.Black,
+                                                fontSize = 32.sp
+                                            ),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = "/5.0",
+                                            color = Color.Gray,
+                                            fontSize = 14.sp,
+                                            modifier = Modifier.padding(bottom = 6.dp, start = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                // Sağ Kısım: Yorum Sayısı Bilgisi (Tıklanabilir)
+                                Surface(
+                                    onClick = { showReviewsSheet = true },
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                    shape = RoundedCornerShape(16.dp)
                                 ) {
-                                    IconButton(
-                                        onClick = { 
-                                            navController.navigate("messages/${userId}")
-                                        },
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .background(
-                                                MaterialTheme.colorScheme.surfaceVariant,
-                                                CircleShape
-                                            )
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.Message,
-                                            contentDescription = "Send Message",
-                                            tint = MaterialTheme.colorScheme.primary
+                                        Text(
+                                            text = "${userReviews.size}",
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = "Reviews",
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
                             }
-                            
+
+                            // Ayırıcı Çizgi
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 16.dp),
+                                thickness = 0.5.dp,
+                                color = Color.LightGray.copy(alpha = 0.5f)
+                            )
+
+                            // Alt Satır: Üçlü Detaylı Rating Bilgileri
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                if (profile.age != 0) {
-                                    Text(
-                                        text = "${profile.age} years old",
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                }
-                                if (profile.city.isNotEmpty()) {
-                                    Text(
-                                        text = "•",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                    Text(
-                                        text = profile.city,
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    HorizontalDivider(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f)
-                    )
-
-                    // Biyografi
-                    if (!profile.about.isNullOrEmpty()) {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                            ) {
-                                Text(
-                                    text = "About",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-                                Text(
-                                    text = profile.about ?: "",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    // İlgi Alanları
-                    if (!profile.sports.isNullOrEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Area of Interest",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
-                        )
-                        LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
-                        ) {
-                            items(profile.sports) { sport ->
-                                val sportInfo = Sports.getSportInfo(sport)
-                                AssistChip(
-                                    onClick = { },
-                                    label = { 
-                                        Row(
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            if (sportInfo != null) {
-                                                Icon(
-                                                    painter = painterResource(id = sportInfo.iconResId),
-                                                    contentDescription = sport,
-                                                    modifier = Modifier.size(16.dp)
-                                                        .padding(end = 8.dp),
-                                                    tint = null
-                                                )
-                                            }
-                                            Text(Sports.getSportInfo(sport)?.nameEn ?: sport)
-                                        }
-                                    },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = sportInfo?.color ?: MaterialTheme.colorScheme.surfaceVariant,
-                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                )
-                            }
-                        }
-                    }
-                    
-                    HorizontalDivider(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f)
-                    )
-
-
-                    
-                    // Değerlendirme Puanları
-                    if (userReviews.isNotEmpty()) {
-                        Text(
-                            text = "Reviews",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        // Yatay düzende puanlar
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            RatingItem(
-                                rating = skillRating,
-                                label = "Beceri"
-                            )
-                            
-                            RatingItem(
-                                rating = behaviorRating,
-                                label = "Davranış"
-                            )
-                            
-                            RatingItem(
-                                rating = teamRating,
-                                label = "Uyum"
-                            )
-                        }
-
-                        Text(
-                            text = "${userReviews.size} reviews in total",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
-                            modifier = Modifier
-                                .clickable {
-                                    scope.launch {
-                                        try {
-                                            val reviews = reviewRepository.getUserReviews(userId)
-                                            userReviews = reviews
-                                            showReviewsSheet = true
-                                        } catch (e: Exception) {
-                                            println("Error loading reviews: ${e.message}")
-                                        }
-                                    }
-                                }
-                                .padding(vertical = 4.dp)
-                        )
-
-                        HorizontalDivider(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Oluşturulan Etkinlikler
-                    Text(
-                        text = "My Created Events",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
-                    if (createdEvents.isEmpty()) {
-                            Text(
-                                text = "No events have been created yet",
                                 modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
-                    } else {
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(horizontal = 4.dp)
-                        ) {
-                        items(createdEvents) { event ->
-                                SimpleEventCard(event = event)
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                RatingStatItem(label = "Skill", value = skillRating)
+                                RatingStatItem(label = "Behavior", value = behaviorRating)
+                                RatingStatItem(label = "Cohesion", value = teamRating)
                             }
                         }
                     }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Katıldığı Etkinlikler
-                    Text(
-                        text = "Participated Events",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
-                    if (participatedEvents.isEmpty()) {
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    if (!userProfile?.about.isNullOrEmpty()) {
+                        SectionHeader("About Me")
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        ) {
                             Text(
-                                text = "No events participated yet",
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
+                                text = userProfile?.about ?: "",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(16.dp),
+                                lineHeight = 24.sp
                             )
-                    } else {
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(horizontal = 4.dp)
-                        ) {
-                        items(participatedEvents) { event ->
-                                SimpleEventCard(event = event)
-                            }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    if (!userProfile?.sports.isNullOrEmpty()) {
+                        SectionHeader("Interests")
+                        InterestsRow(userProfile?.sports ?: emptyList())
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    EventCarousel("Created Events", createdEvents)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    EventCarousel("Participated Events", participatedEvents)
+
+                    Spacer(modifier = Modifier.height(60.dp))
                 }
             }
         }
@@ -456,97 +276,171 @@ fun ProfileReviewScreen(
         if (showReviewsSheet) {
             ModalBottomSheet(
                 onDismissRequest = { showReviewsSheet = false },
-                sheetState = bottomSheetState
+                sheetState = bottomSheetState,
+                dragHandle = { BottomSheetDefaults.DragHandle() }
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 32.dp)
                 ) {
                     Text(
                         text = "Reviews",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(userReviews) { review ->
-                            ReviewCard(review = review)
+                    if (userReviews.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
+                            Text("No reviews yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(userReviews) { review ->
+                                ReviewCard(review = review)
+                            }
                         }
                     }
                 }
             }
         }
     }
-} 
+}
 
 @Composable
-fun SimpleEventCard(event: Event) {
-    Card(
-        modifier = Modifier
-            .width(280.dp)
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Başlık
-            Text(
-                text = event.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            
-            // Tarih
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+fun ProfileHeaderSection(
+    profileImageUrl: String,
+    username: String,
+    location: String,
+    onMessageClick: () -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(contentAlignment = Alignment.BottomEnd) {
+            Surface(
+                modifier = Modifier.size(130.dp).padding(4.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 8.dp
             ) {
-                Icon(
-                    imageVector = Icons.Default.DateRange,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = event.date,
-                    style = MaterialTheme.typography.bodyMedium
+                AsyncImage(
+                    model = profileImageUrl,
+                    contentDescription = "Profile",
+                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(id = R.drawable.ic_profile_placeholder)
                 )
             }
-            
-            // Spor Türü
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            SmallFloatingActionButton(
+                onClick = onMessageClick,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = CircleShape,
+                modifier = Modifier.offset(x = (-4).dp, y = (-4).dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Sports,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = event.sportType,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Icon(Icons.AutoMirrored.Filled.Message, contentDescription = "Message", modifier = Modifier.size(20.dp))
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = username, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+            Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(text = location, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+fun SectionHeader(title: String) {
+    Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp))
+}
+
+@Composable
+fun InterestsRow(interests: List<String>) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(vertical = 4.dp)
+    ) {
+        items(interests) { sport ->
+            val sportInfo = Sports.getSportInfo(sport)
+            Surface(
+                color = sportInfo?.color?.copy(alpha = 0.15f) ?: MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, sportInfo?.color?.copy(alpha = 0.3f) ?: MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (sportInfo != null) {
+                        Icon(
+                            painter = painterResource(id = sportInfo.iconResId),
+                            contentDescription = sport,
+                            modifier = Modifier.size(18.dp),
+                            tint = Color.Unspecified
+                        )
+                    }
+                    Text(
+                        text = sportInfo?.nameEn ?: sport,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = sportInfo?.color ?: MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
 }
 
-// TODO: UserProfile modeline bio, interests gibi alanlar eklenmeli
-// TODO: EventCard composable'ı güncellenmeli veya özelleştirilmeli 
+@Composable
+fun EventCarousel(title: String, events: List<Event>) {
+    Column {
+        SectionHeader(title)
+        if (events.isEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().height(100.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text("No events yet", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                }
+            }
+        } else {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                items(events) { event ->
+                    ModernEventCard(event)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ModernEventCard(event: Event) {
+    Card(
+        modifier = Modifier.width(260.dp).shadow(4.dp, RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(8.dp)) {
+                Text(text = event.sportType, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(text = event.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = event.date, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}

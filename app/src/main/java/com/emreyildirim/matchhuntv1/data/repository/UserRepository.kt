@@ -9,6 +9,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import java.util.UUID
 
 class UserRepository {
@@ -154,6 +156,28 @@ class UserRepository {
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    // Batch olarak birden fazla kullanıcı adını al (N+1 query problemini çözmek için)
+    // Paralel olarak tüm kullanıcı adlarını alır
+    suspend fun getUserNames(userIds: List<String>): Map<String, String> {
+        return try {
+            if (userIds.isEmpty()) return emptyMap()
+            
+            // Tüm kullanıcı adlarını paralel olarak al
+            coroutineScope {
+                userIds.map { userId ->
+                    async {
+                        userId to (getUserName(userId).getOrNull() ?: "Anonim")
+                    }
+                }.map { it.await() }.toMap()
+            }
+        } catch (e: Exception) {
+            // Hata durumunda fallback: her birini tek tek al (sequential)
+            userIds.associateWith { userId ->
+                getUserName(userId).getOrNull() ?: "Anonim"
+            }
         }
     }
 
