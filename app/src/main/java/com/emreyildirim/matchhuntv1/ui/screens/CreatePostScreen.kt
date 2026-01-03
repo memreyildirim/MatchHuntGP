@@ -4,8 +4,13 @@ import android.Manifest
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -14,9 +19,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -40,29 +50,21 @@ fun CreatePostScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val postCreated by viewModel.postCreated.collectAsState()
-    var showImageSourceDialog by remember { mutableStateOf(false) }
+
+    var showImageSourceSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+
     val context = LocalContext.current
     var photoFile by remember { mutableStateOf<File?>(null) }
-
     val cameraPermissionState = rememberPermissionState(permission = Manifest.permission.CAMERA)
 
     LaunchedEffect(postCreated) {
-        if (postCreated) {
-            onNavigateBack()
-        }
-    }
-
-    LaunchedEffect(error) {
-        error?.let {
-            // Show error message
-        }
+        if (postCreated) onNavigateBack()
     }
 
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        selectedImageUri = uri
-    }
+    ) { uri: Uri? -> selectedImageUri = uri }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -70,9 +72,7 @@ fun CreatePostScreen(
         if (success) {
             photoFile?.let { file ->
                 selectedImageUri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    file
+                    context, "${context.packageName}.fileprovider", file
                 )
             }
         }
@@ -80,13 +80,16 @@ fun CreatePostScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Create Post") },
+            CenterAlignedTopAppBar(
+                title = { Text("Yeni Gönderi", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { paddingValues ->
@@ -94,176 +97,222 @@ fun CreatePostScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Image Selection
+            // --- Image Selector ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(240.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
                 contentAlignment = Alignment.Center
             ) {
                 if (selectedImageUri != null) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(selectedImageUri)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Selected Image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { showImageSourceDialog = true },
-                            modifier = Modifier.weight(1f)
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(selectedImageUri)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Seçilen Resim",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(12.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                            shape = CircleShape,
+                            onClick = { showImageSourceSheet = true }
                         ) {
-                            Icon(Icons.Default.Image, contentDescription = "Select Image")
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Select Image")
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Değiştir",
+                                modifier = Modifier.padding(8.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconButton(
+                            onClick = { showImageSourceSheet = true },
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                        ) {
+                            Icon(Icons.Default.AddPhotoAlternate, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(32.dp))
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Bir fotoğraf ekleyin", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
+            // --- Updated Sport Selection ---
+            var expanded by remember { mutableStateOf(false) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Spor Türü", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedSportType.replaceFirstChar { it.uppercase() },
+                        onValueChange = {},
+                        readOnly = true,
+                        placeholder = { Text("Bir spor dalı seçin") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        leadingIcon = {
+                            val info = Sports.getSportInfo(selectedSportType)
+                            if (info != null) {
+                                Icon(
+                                    painter = painterResource(id = info.iconResId),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = Color.Unspecified
+                                )
+                            } else {
+                                Icon(Icons.Default.SportsScore, null)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        Sports.allSports.forEach { sportInfo ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = sportInfo.name,
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                        Icon(
+                                            painter = painterResource(id = sportInfo.iconResId),
+                                            contentDescription = sportInfo.nameEn,
+                                            modifier = Modifier.size(24.dp),
+                                            tint = Color.Unspecified
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    selectedSportType = sportInfo.name
+                                    expanded = false
+                                },
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            )
                         }
                     }
                 }
             }
 
-            // Sport Type Selection
-            var expanded by remember { mutableStateOf(false) }
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it }
-            ) {
+            // --- Description ---
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Açıklama", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 OutlinedTextField(
-                    value = selectedSportType,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Sport Type") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
-                )
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    Sports.allSports.forEach { sport ->
-                        DropdownMenuItem(
-                            text = { Text(sport.nameEn) },
-                            onClick = {
-                                selectedSportType = sport.nameEn.lowercase()
-                                expanded = false
-                            }
-                        )
+                    value = description,
+                    onValueChange = { if (it.length <= 250) description = it },
+                    placeholder = { Text("Neler oluyor?...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4,
+                    shape = RoundedCornerShape(16.dp),
+                    supportingText = {
+                        Text("${description.length}/250", modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.End)
                     }
-                }
-            }
-
-            // Description
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3
-            )
-
-            // Error message
-            error?.let { errorMessage ->
-                Text(
-                    text = errorMessage,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
 
-            // Create Post Button
+            if (error != null) {
+                Text(text = error ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+
+            // --- Submit Button ---
             Button(
                 onClick = {
                     selectedImageUri?.let { uri ->
-                        viewModel.createPost(
-                            imageUri = uri,
-                            description = description,
-                            sportType = selectedSportType
-                        )
+                        viewModel.createPost(uri, description, selectedSportType)
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 enabled = selectedImageUri != null && description.isNotBlank() && selectedSportType.isNotBlank() && !isLoading
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text("Create Post")
+                    Text("Paylaş", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }
     }
 
-    if (showImageSourceDialog) {
-        AlertDialog(
-            onDismissRequest = { showImageSourceDialog = false },
-            title = { Text("Select Image Source") },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
+    // --- Image Source Sheet ---
+    if (showImageSourceSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showImageSourceSheet = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Resim Kaynağı Seçin", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(20.dp),
                         onClick = {
-                            showImageSourceDialog = false
+                            showImageSourceSheet = false
                             imagePicker.launch("image/*")
-                        },
-                        modifier = Modifier.fillMaxWidth()
+                        }
                     ) {
-                        Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Gallery")
+                        Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.PhotoLibrary, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Galeri")
+                        }
                     }
-                    Button(
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(20.dp),
                         onClick = {
-                            showImageSourceDialog = false
+                            showImageSourceSheet = false
                             if (cameraPermissionState.status.isGranted) {
-                                photoFile = File.createTempFile(
-                                    "IMG_${System.currentTimeMillis()}_",
-                                    ".jpg",
-                                    context.cacheDir
-                                )
+                                photoFile = File.createTempFile("IMG_${System.currentTimeMillis()}_", ".jpg", context.cacheDir)
                                 photoFile?.let { file ->
-                                    val photoUri = FileProvider.getUriForFile(
-                                        context,
-                                        "${context.packageName}.fileprovider",
-                                        file
-                                    )
+                                    val photoUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
                                     cameraLauncher.launch(photoUri)
                                 }
                             } else {
                                 cameraPermissionState.launchPermissionRequest()
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth()
+                        }
                     ) {
-                        Icon(Icons.Default.Camera, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Camera")
+                        Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.CameraAlt, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Kamera")
+                        }
                     }
                 }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showImageSourceDialog = false }) {
-                    Text("Cancel")
-                }
             }
-        )
+        }
     }
-} 
+}

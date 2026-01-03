@@ -17,35 +17,40 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80,
-    surface = Color(0xFF1C1B1F),
-    onSurface = Color(0xFFE6E1E5),
-    surfaceVariant = Color(0xFF49454F),
-    onSurfaceVariant = Color(0xFFCAC4D0),
-    outline = Color(0xFF938F99),
-    background = Color(0xFF1C1B1F),
-    onBackground = Color(0xFFE6E1E5)
+    primary = BrandVolt,          // Karanlıkta ana aksiyon rengi Neon Sarı
+    onPrimary = Obsidian,         // Sarı üzerindeki metinler Siyah
+    secondary = BrandVolt,
+    onSecondary = Obsidian,
+    background = DeepObsidian,    // Derin siyah arka plan
+    surface = SurfaceDark,        // Kartlar için hafif aydınlatılmış yüzey
+    onSurface = PureWhite,        // Kart üzerindeki metinler Beyaz
+    onBackground = PureWhite,     // Arka plan metinleri Beyaz
+    error = ErrorRed,
+    outline = MutedTextDark.copy(alpha = 0.4f)
 )
 
+// Şu an sadece Light Theme aktif olduğu için sadece bu şemayı özelleştiriyoruz.
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40,
-    surface = Color(0xFFFFFBFE),
-    onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Color(0xFFE7E0EC),
-    onSurfaceVariant = Color(0xFF49454F),
-    outline = Color(0xFF79747E),
-    background = Color(0xFFFFFBFE),
-    onBackground = Color(0xFF1C1B1F)
+    primary = Obsidian,       // Butonlar ve ana öğeler siyah
+    onPrimary = BrandVolt,    // Siyah üzerindeki yazılar neon sarı
+    primaryContainer = BrandVolt,
+    onPrimaryContainer = Obsidian,
+    secondary = Obsidian,
+    background = SoftGray,    // Arka plan soft gri
+    surface = PureWhite,      // Kartlar beyaz
+    onSurface = Obsidian,     // Kart üzerindeki yazılar siyah
+    surfaceVariant = IncomingGray,
+    /* Varsayılan moru ezmek için diğer renkleri de tanımlıyoruz */
+    secondaryContainer = SoftGray,
+    onSecondaryContainer = Obsidian,
+    tertiary = BrandVolt,
+    onTertiary = Obsidian
 )
 
 @Composable
 fun MatchHuntV1Theme(
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

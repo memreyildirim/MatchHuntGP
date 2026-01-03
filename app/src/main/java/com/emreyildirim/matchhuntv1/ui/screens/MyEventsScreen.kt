@@ -182,7 +182,7 @@ fun MyCreatedEventsList(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(bottom = 120.dp, start = 16.dp, end = 16.dp, top = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(events) { event ->
@@ -355,8 +355,7 @@ fun MyCreatedEventCard(
                     )
                     Text(
                         text = "${event.date} ${event.time}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
 
@@ -687,7 +686,7 @@ fun MyParticipatedEventsList(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(bottom = 120.dp, start = 16.dp, end = 16.dp, top = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(filteredEvents) { event ->
@@ -904,6 +903,7 @@ fun MyParticipatedEventCard(
                             ) {
                                 Icon(
                                     imageVector = if (hasReviewed) Icons.Default.Star else Icons.Default.StarBorder,
+                                    tint = if (hasReviewed) Color(0xFFD58F04) else Color.Unspecified,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )

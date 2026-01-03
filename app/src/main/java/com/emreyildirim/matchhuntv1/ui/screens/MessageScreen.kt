@@ -32,11 +32,18 @@ import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Message
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.ui.viewmodel.MessageViewModel
+import com.emreyildirim.matchhuntv1.ui.theme.* // Tema renklerini buradan import ediyoruz
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
+
+sealed class MessageListItem {
+    data class MessageItem(val message: Message) : MessageListItem()
+    data class DateHeader(val date: Date, val label: String) : MessageListItem()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,12 +58,14 @@ fun MessageScreen(
     var targetUserProfile by remember { mutableStateOf<UserProfile?>(null) }
     val firestore = FirebaseFirestore.getInstance()
     val listState = rememberLazyListState()
-    val keyboardController = LocalSoftwareKeyboardController.current
 
     var hasInitialScrollDone by remember { mutableStateOf(false) }
     var lastKnownLastMessageId by remember { mutableStateOf<String?>(null) }
 
-    // Hedef profil yükleme
+    val messageListItems = remember(messages) {
+        buildMessageListWithHeaders(messages)
+    }
+
     LaunchedEffect(targetUserId) {
         if (targetUserId != null) {
             firestore.collection("users").document(targetUserId).get()
@@ -64,7 +73,6 @@ fun MessageScreen(
         }
     }
 
-    // Listener ve Mesaj Başlatma
     LaunchedEffect(targetUserId) {
         if (targetUserId != null) {
             viewModel.loadInitialMessages(targetUserId)
@@ -75,75 +83,51 @@ fun MessageScreen(
         }
     }
 
-    // Pagination: Listenin tepesine ulaşıldığında eski mesajları yükle
     LaunchedEffect(listState, isLoading, messages.size, targetUserId) {
         if (targetUserId == null) return@LaunchedEffect
-
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .collectLatest { index ->
-                if (!hasInitialScrollDone) return@collectLatest
-
-                // Listenin en üstündeysek ve yükleme yapılmıyorsa
-                if (index == 0 && !isLoading && messages.isNotEmpty()) {
-                    viewModel.loadMoreMessages()
-                }
+        snapshotFlow { listState.firstVisibleItemIndex }.collectLatest { index ->
+            if (!hasInitialScrollDone) return@collectLatest
+            if (index == 0 && !isLoading && messages.isNotEmpty()) {
+                viewModel.loadMoreMessages()
             }
-    }
-
-    // Akıllı Scroll Yönetimi
-    LaunchedEffect(messages.size) {
-        if (messages.isEmpty()) return@LaunchedEffect
-
-        try {
-            val currentLastId = messages.last().id
-
-            // 1) İlk yüklemede: her durumda en alta git
-            if (!hasInitialScrollDone) {
-                listState.scrollToItem(messages.lastIndex)
-                hasInitialScrollDone = true
-                lastKnownLastMessageId = currentLastId
-                if (targetUserId != null) {
-                    viewModel.markMessagesAsRead(targetUserId)
-                }
-                return@LaunchedEffect
-            }
-
-            // 2) Pagination: eski mesajlar eklendiyse (son mesaj aynıysa) scroll etme
-            if (lastKnownLastMessageId == currentLastId) {
-                return@LaunchedEffect
-            }
-
-            // 3) Yeni mesaj geldi: en alta kaydır
-            listState.animateScrollToItem(messages.lastIndex)
-            lastKnownLastMessageId = currentLastId
-
-            if (targetUserId != null) {
-                viewModel.markMessagesAsRead(targetUserId)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 
+    LaunchedEffect(messageListItems.size) {
+        if (messageListItems.isEmpty()) return@LaunchedEffect
+        try {
+            val lastMessageItem = messageListItems.lastOrNull() as? MessageListItem.MessageItem
+            val currentLastId = lastMessageItem?.message?.id ?: return@LaunchedEffect
+
+            if (!hasInitialScrollDone) {
+                listState.scrollToItem(messageListItems.lastIndex)
+                hasInitialScrollDone = true
+                lastKnownLastMessageId = currentLastId
+                return@LaunchedEffect
+            }
+
+            if (lastKnownLastMessageId != currentLastId) {
+                listState.animateScrollToItem(messageListItems.lastIndex)
+                lastKnownLastMessageId = currentLastId
+                if (targetUserId != null) viewModel.markMessagesAsRead(targetUserId)
+            }
+        } catch (e: Exception) { e.printStackTrace() }
+    }
+
     val chatBackground = Brush.verticalGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
-            MaterialTheme.colorScheme.surface
-        )
+        colors = listOf(Color.White, SoftGray)
     )
 
     Scaffold(
+        containerColor = SoftGray,
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(38.dp),
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceVariant
+                            color = SoftGray
                         ) {
                             AsyncImage(
                                 model = targetUserProfile?.profileImageUrl,
@@ -153,29 +137,26 @@ fun MessageScreen(
                                 error = painterResource(id = R.drawable.ic_profile_placeholder)
                             )
                         }
-
                         Spacer(modifier = Modifier.width(12.dp))
-
                         Text(
                             text = targetUserProfile?.username ?: "Yükleniyor...",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Obsidian
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri", tint = Obsidian)
                     }
                 },
                 actions = {
                     IconButton(onClick = { /* Sohbet Seçenekleri */ }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = null)
+                        Icon(Icons.Default.MoreVert, contentDescription = null, tint = Obsidian)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         }
     ) { paddingValues ->
@@ -185,87 +166,78 @@ fun MessageScreen(
                 .padding(top = paddingValues.calculateTopPadding())
                 .background(chatBackground)
         ) {
-            // Mesaj Listesi
             LazyColumn(
                 state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .imePadding(),
-                contentPadding = PaddingValues(
-                    bottom = 96.dp,
-                    top = 8.dp,
-                    start = 12.dp,
-                    end = 12.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxSize().imePadding(),
+                contentPadding = PaddingValues(bottom = 100.dp, top = 8.dp, start = 12.dp, end = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Üst Pagination Loader'ı
                 if (isLoading && messages.isNotEmpty()) {
-                    item(key = "top_loader") {
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                        }
-                    }
+                    item { Box(Modifier.fillMaxWidth(), Alignment.Center) { CircularProgressIndicator(Modifier.size(20.dp), Obsidian) } }
                 }
 
                 items(
-                    items = messages,
-                    key = { it.id }
-                ) { message ->
-                    ModernMessageItem(message = message)
+                    items = messageListItems,
+                    key = { item ->
+                        when (item) {
+                            is MessageListItem.MessageItem -> item.message.id
+                            is MessageListItem.DateHeader -> "date_${item.date.time}"
+                        }
+                    }
+                ) { item ->
+                    when (item) {
+                        is MessageListItem.MessageItem -> ModernMessageItem(message = item.message)
+                        is MessageListItem.DateHeader -> DateHeaderItem(label = item.label)
+                    }
                 }
             }
 
-            // --- YÜZER GİRİŞ ALANI (Floating Input) ---
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
                     .navigationBarsPadding()
                     .imePadding(),
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp,
+                shape = RoundedCornerShape(30.dp),
+                color = Color.White,
                 shadowElevation = 8.dp
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextField(
                         value = messageText,
                         onValueChange = { messageText = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Mesaj yaz...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        placeholder = { Text("Mesaj yaz...", color = Color.Gray, fontSize = 14.sp) },
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
                             focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
+                            unfocusedIndicatorColor = Color.Transparent,
+                            cursorColor = Obsidian
                         ),
                         maxLines = 4
                     )
 
-                    FilledIconButton(
+                    IconButton(
                         onClick = {
                             if (messageText.isNotBlank() && targetUserId != null) {
                                 viewModel.sendMessage(messageText, targetUserId)
                                 messageText = ""
                             }
                         },
-                        enabled = messageText.isNotBlank() && targetUserId != null && !isLoading,
-                        modifier = Modifier.size(44.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                        modifier = Modifier
+                            .size(42.dp)
+                            .background(Obsidian, CircleShape),
+                        enabled = messageText.isNotBlank() && !isLoading
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = "Gönder",
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp),
+                            tint = BrandVolt
                         )
                     }
                 }
@@ -283,37 +255,82 @@ fun ModernMessageItem(message: Message) {
         modifier = Modifier.fillMaxWidth(),
         contentAlignment = if (isCurrentUser) Alignment.CenterEnd else Alignment.CenterStart
     ) {
-        Column(
-            horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
+        Surface(
+            color = if (isCurrentUser) Obsidian else IncomingGray,
+            shape = RoundedCornerShape(
+                topStart = 18.dp,
+                topEnd = 18.dp,
+                bottomStart = if (isCurrentUser) 18.dp else 4.dp,
+                bottomEnd = if (isCurrentUser) 4.dp else 18.dp
+            ),
+            modifier = Modifier.widthIn(max = 280.dp)
         ) {
-            Surface(
-                color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(
-                    topStart = 20.dp,
-                    topEnd = 20.dp,
-                    bottomStart = if (isCurrentUser) 20.dp else 4.dp,
-                    bottomEnd = if (isCurrentUser) 4.dp else 20.dp
-                ),
-                tonalElevation = if (isCurrentUser) 0.dp else 2.dp,
-                modifier = Modifier.widthIn(max = 300.dp)
-            ) {
-                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                    Text(
-                        text = message.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(
-                        text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(message.timestamp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = (if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.6f),
-                        modifier = Modifier.align(Alignment.End)
-                    )
-                }
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                Text(
+                    text = message.text,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+                    color = if (isCurrentUser) BrandVolt else Obsidian
+                )
+                Text(
+                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(message.timestamp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = (if (isCurrentUser) BrandVolt else Obsidian).copy(alpha = 0.5f),
+                    modifier = Modifier.align(Alignment.End).padding(top = 2.dp)
+                )
             }
         }
     }
+}
+
+@Composable
+fun DateHeaderItem(label: String) {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = Color.Black.copy(alpha = 0.05f),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.Gray,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+fun buildMessageListWithHeaders(messages: List<Message>): List<MessageListItem> {
+    if (messages.isEmpty()) return emptyList()
+    val items = mutableListOf<MessageListItem>()
+    var lastDate: Calendar? = null
+    for (message in messages) {
+        val messageDate = Calendar.getInstance().apply { time = message.timestamp }
+        if (lastDate == null || !isSameDay(lastDate, messageDate)) {
+            items.add(MessageListItem.DateHeader(message.timestamp, formatDateHeader(message.timestamp)))
+            lastDate = messageDate
+        }
+        items.add(MessageListItem.MessageItem(message))
+    }
+    return items
+}
+
+fun formatDateHeader(timestamp: Date): String {
+    val now = Calendar.getInstance()
+    val messageTime = Calendar.getInstance().apply { time = timestamp }
+    if (isSameDay(now, messageTime)) return "Bugün"
+    val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+    if (isSameDay(yesterday, messageTime)) return "Dün"
+    val daysDiff = TimeUnit.MILLISECONDS.toDays(now.timeInMillis - messageTime.timeInMillis)
+    if (daysDiff < 7) return SimpleDateFormat("EEEE", Locale("tr", "TR")).format(timestamp)
+    val dateFormat = if (now.get(Calendar.YEAR) == messageTime.get(Calendar.YEAR)) SimpleDateFormat("d MMMM", Locale("tr", "TR"))
+    else SimpleDateFormat("d MMMM yyyy", Locale("tr", "TR"))
+    return dateFormat.format(timestamp)
+}
+
+private fun isSameDay(cal1: Calendar, cal2: Calendar): Boolean {
+    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) && cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
 }

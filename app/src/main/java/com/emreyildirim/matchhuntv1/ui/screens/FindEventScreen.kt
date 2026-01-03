@@ -209,6 +209,7 @@ fun FindEventScreen(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(events) { event ->

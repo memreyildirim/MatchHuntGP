@@ -62,27 +62,45 @@ class PostRepository {
         }
     }
 
-    // Tüm postları getiren eski fonksiyon (geriye dönük uyumluluk için)
-    suspend fun getPosts(): Result<List<Post>> {
+    suspend fun deletePost(postId: String, userId: String): Result<Unit> {
         return try {
-            Log.d("PostRepository", "Fetching all posts from Firestore...")
-            val snapshot = postsCollection
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .get()
-                .await()
-            
-            val posts = snapshot.documents.mapNotNull { doc ->
-                val post = doc.toObject(Post::class.java)
-                post?.copy(id = doc.id)
+            val postRef = postsCollection.document(postId)
+            val post = postRef.get().await().toObject(Post::class.java)
+                ?: return Result.failure(Exception("Post bulunamadı"))
+
+            // Kısa kontrol - sadece sahip kontrolü
+            if (post.userId != userId) {
+                return Result.failure(Exception("Bu postu silme yetkiniz yok"))
             }
-            Log.d("PostRepository", "Successfully fetched ${posts.size} posts")
-            Result.success(posts)
+
+            // Görseli sil
+            if (post.imageUrl.isNotEmpty()) {
+                try {
+                    storage.getReferenceFromUrl(post.imageUrl).delete().await()
+                } catch (e: Exception) {
+                    Log.w("PostRepository", "Image delete failed: ${e.message}")
+                }
+            }
+
+            // Yorumları sil
+            try {
+                val comments = commentsCollection.whereEqualTo("postId", postId).get().await()
+                val batch = db.batch()
+                comments.documents.forEach { batch.delete(it.reference) }
+                if (comments.documents.isNotEmpty()) batch.commit().await()
+            } catch (e: Exception) {
+                Log.w("PostRepository", "Comments delete failed: ${e.message}")
+            }
+
+            // Postu sil
+            postRef.delete().await()
+            Result.success(Unit)
         } catch (e: Exception) {
-            Log.e("PostRepository", "Error fetching posts", e)
             Result.failure(e)
         }
     }
-    
+
+
     // Pagination ile postları getiren yeni fonksiyon
     suspend fun getPostsPaginated(lastVisiblePost: Post? = null): Result<Pair<List<Post>, Boolean>> {
         return try {
@@ -169,6 +187,49 @@ class PostRepository {
             }
         } catch (e: Exception) {
             throw Exception("Failed to load comments: ${e.message}")
+        }
+    }
+
+    suspend fun getUserPosts(userId: String): List<Post> {
+        return try {
+            Log.d("PostRepository", "Fetching posts for user $userId")
+            val snapshot = postsCollection
+                .whereEqualTo("userId", userId)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            
+            val posts = snapshot.documents.mapNotNull { doc ->
+                val post = doc.toObject(Post::class.java)
+                post?.copy(id = doc.id)
+            }
+            Log.d("PostRepository", "Successfully fetched ${posts.size} posts for user")
+            posts
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error fetching user posts", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getUserPostsLimited(userId: String, limit: Int = 6): List<Post> {
+        return try {
+            Log.d("PostRepository", "Fetching limited posts ($limit) for user $userId")
+            val snapshot = postsCollection
+                .whereEqualTo("userId", userId)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(limit.toLong())
+                .get()
+                .await()
+            
+            val posts = snapshot.documents.mapNotNull { doc ->
+                val post = doc.toObject(Post::class.java)
+                post?.copy(id = doc.id)
+            }
+            Log.d("PostRepository", "Successfully fetched ${posts.size} limited posts for user")
+            posts
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error fetching limited user posts", e)
+            emptyList()
         }
     }
 }

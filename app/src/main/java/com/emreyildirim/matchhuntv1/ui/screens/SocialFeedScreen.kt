@@ -19,8 +19,6 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
@@ -29,22 +27,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.emreyildirim.matchhuntv1.data.model.Post
 import com.emreyildirim.matchhuntv1.ui.viewmodel.SocialFeedViewModel
+import com.emreyildirim.matchhuntv1.ui.viewmodel.MessageViewModel
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
 import com.emreyildirim.matchhuntv1.utils.Sports
 import com.google.firebase.auth.FirebaseAuth
@@ -62,17 +54,26 @@ fun SocialFeedScreen(
     onNavigateToCreatePost: () -> Unit,
     onNavigateToMessages: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
-    viewModel: SocialFeedViewModel = viewModel()
+    viewModel: SocialFeedViewModel = viewModel(),
+    messageViewModel: MessageViewModel
 ) {
     val posts by viewModel.posts.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val hasMorePosts by viewModel.hasMorePosts.collectAsState()
-    val error by viewModel.error.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val navigateToProfile by viewModel.navigateToProfile.collectAsState()
+    
+    // Sadece toplam okunmamış mesaj sayısını dinle - her render'da hesaplama yapılmaz
+    val unreadMessageCount by messageViewModel.totalUnreadCount.collectAsState()
 
     val lazyListState = rememberLazyListState()
     val swipeRefreshState = rememberSwipeRefreshState(isLoading)
+
+    // Konuşmaları yükle ve dinle - sadece bir kez
+    LaunchedEffect(Unit) {
+        messageViewModel.loadConversations()
+        messageViewModel.startConversationListener()
+    }
 
     LaunchedEffect(navigateToProfile) {
         navigateToProfile?.let { userId ->
@@ -98,6 +99,7 @@ fun SocialFeedScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background, // Ekran arka planı
         topBar = {
             TopAppBar(
                 title = {
@@ -106,7 +108,8 @@ fun SocialFeedScreen(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Black,
                             letterSpacing = (-0.5).sp,
-                            fontSize = 20.sp
+                            fontSize = 27.sp,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     )
                 },
@@ -114,63 +117,86 @@ fun SocialFeedScreen(
                     IconButton(onClick = onNavigateToMessages) {
                         BadgedBox(
                             badge = {
-                                Badge(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
-                                ) { Text("3", fontSize = 9.sp) }
+                                if (unreadMessageCount > 0) {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
+                                    ) { 
+                                        Text(
+                                            if (unreadMessageCount > 99) "99+" else unreadMessageCount.toString(),
+                                            fontSize = 9.sp, 
+                                            color = Color.White
+                                        ) 
+                                    }
+                                }
                             }
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Message,
-                                contentDescription = "Mesajlar",
-                                modifier = Modifier.size(22.dp)
+                                contentDescription = "Messages",
+                                modifier = Modifier.size(30.dp),
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                ),
-                windowInsets = WindowInsets(0, 0, 0, 0)
+                    containerColor = MaterialTheme.colorScheme.background // TopBar rengi arka planla aynı yapılarak uyumsuzluk giderildi
+                )
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNavigateToCreatePost,
-                containerColor = MaterialTheme.colorScheme.primary,
+                containerColor = MaterialTheme.colorScheme.onPrimary,
+                contentColor = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier
+                    .padding(bottom = 85.dp)
+                    .navigationBarsPadding()
             ) {
-                Icon(Icons.Default.Add, "Create", modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Add, "Create", modifier = Modifier.size(28.dp))
             }
         }
     ) { paddingValues ->
         SwipeRefresh(
             state = swipeRefreshState,
             onRefresh = { viewModel.loadPosts() },
-            modifier = Modifier.padding(paddingValues),
+            modifier = Modifier.padding(top = paddingValues.calculateTopPadding()),
             indicator = { state, refreshTrigger ->
                 SwipeRefreshIndicator(
                     state = state,
                     refreshTriggerDistance = refreshTrigger,
-                    contentColor = MaterialTheme.colorScheme.primary
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    backgroundColor = MaterialTheme.colorScheme.onPrimary,
                 )
             }
         ) {
             if (isLoading && posts.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(strokeWidth = 3.dp, modifier = Modifier.size(40.dp))
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(40.dp)
+                    )
                 }
             } else {
                 LazyColumn(
                     state = lazyListState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp, start = 12.dp, end = 12.dp, top = 8.dp),
+                    contentPadding = PaddingValues(
+                        bottom = 120.dp,
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 8.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(posts, key = { it.id }) { post ->
                         PostCard(
                             post = post,
+                            obsidian = MaterialTheme.colorScheme.primary,
+                            brandVolt = MaterialTheme.colorScheme.onPrimary,
                             onLikeClick = { viewModel.likePost(post.id) },
                             onCommentSubmit = { viewModel.addComment(post.id, it) },
                             onNavigateToProfile = { viewModel.navigateToProfile(it) }
@@ -185,6 +211,8 @@ fun SocialFeedScreen(
 @Composable
 fun PostCard(
     post: Post,
+    obsidian: Color,
+    brandVolt: Color,
     onLikeClick: (String) -> Unit,
     onCommentSubmit: (String) -> Unit,
     onNavigateToProfile: (String) -> Unit
@@ -200,7 +228,7 @@ fun PostCard(
 
     var showLikeHeart by remember { mutableStateOf(false) }
     val heartScale by animateFloatAsState(
-        targetValue = if (showLikeHeart) 1.2f else 0f,
+        targetValue = if (showLikeHeart) { 1.2f } else 0f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "HeartScale"
     )
@@ -208,7 +236,9 @@ fun PostCard(
     val scope = rememberCoroutineScope()
     var lastTapTime by remember { mutableLongStateOf(0L) }
 
-    val sportColor = Sports.getSportInfo(post.sportType)?.color ?: MaterialTheme.colorScheme.primary
+    val sportColor = remember(post.sportType) {
+        Sports.getSportInfo(post.sportType)?.color ?: brandVolt
+    }
 
     LaunchedEffect(post.userId) {
         val userData = userRepository.getUserProfileData(post.userId)
@@ -222,7 +252,6 @@ fun PostCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column {
-            // Header: User Info
             Row(
                 modifier = Modifier.padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -237,33 +266,34 @@ fun PostCard(
                     contentScale = ContentScale.Crop
                 )
                 Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                    Text(post.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(post.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = obsidian)
                     Text(
                         SimpleDateFormat("d MMM, HH:mm", Locale.getDefault()).format(post.createdAt),
                         fontSize = 11.sp, color = Color.Gray
                     )
                 }
+
+                // Sport Type Alanı: Siyah zemin üzerine sporun kendi rengi
                 Surface(
-                    color = sportColor.copy(alpha = 0.1f),
+                    color = obsidian,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        post.sportType,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        post.sportType.uppercase(),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         color = sportColor,
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Black
                     )
                 }
                 IconButton(onClick = {}) { Icon(Icons.Default.MoreVert, null, tint = Color.Gray, modifier = Modifier.size(20.dp)) }
             }
 
-            // Body: Main Content (Image)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1.1f)
-                    .padding(horizontal = 8.dp)
+                    .padding(horizontal = 12.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -292,12 +322,11 @@ fun PostCard(
                 Icon(
                     imageVector = Icons.Filled.Favorite,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.9f),
+                    tint = brandVolt.copy(alpha = 0.9f),
                     modifier = Modifier.align(Alignment.Center).size(100.dp).scale(heartScale)
                 )
             }
 
-            // Actions Bar
             Row(
                 modifier = Modifier.padding(start = 8.dp, end = 12.dp, top = 4.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -310,23 +339,20 @@ fun PostCard(
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = "Like",
-                        tint = if (isLiked) Color.Red else Color.Black,
+                        tint = if (isLiked) Color.Red else obsidian,
                         modifier = Modifier.size(26.dp)
                     )
                 }
-                Text("${likeCount}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text("${likeCount}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = obsidian)
 
                 Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(onClick = { showComments = !showComments }) {
-                    Icon(Icons.Outlined.ChatBubbleOutline, null, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Outlined.ChatBubbleOutline, null, tint = obsidian, modifier = Modifier.size(24.dp))
                 }
-                Text("${post.comments.size}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-
-
+                Text("${post.comments.size}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = obsidian)
             }
 
-            // Description: Daha belirgin ve kullanıcı adından arındırılmış hali
             if (post.description.isNotBlank()) {
                 Text(
                     text = post.description,
@@ -334,14 +360,12 @@ fun PostCard(
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontSize = 15.sp,
                         lineHeight = 22.sp,
-                        letterSpacing = 0.2.sp,
-                        fontWeight = FontWeight.Normal
+                        letterSpacing = 0.2.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = obsidian
                 )
             }
 
-            // Comments Section: Optimized Vertical Listing
             AnimatedVisibility(
                 visible = showComments,
                 enter = fadeIn() + expandVertically(),
@@ -355,10 +379,8 @@ fun PostCard(
                         .padding(bottom = 12.dp)
                 ) {
                     HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.3f))
-
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Comment List: Instagram Style
                     Column(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -374,35 +396,25 @@ fun PostCard(
                                         text = comment.userName,
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontSize = 13.sp
+                                            fontSize = 13.sp,
+                                            color = obsidian
                                         ),
                                         modifier = Modifier.clickable { onNavigateToProfile(comment.userId) }
                                     )
-                                    // Yorum Zamanı
                                     Text(
                                         text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(comment.createdAt),
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = Color.Gray,
-                                            fontSize = 10.sp
-                                        )
+                                        style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray, fontSize = 10.sp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = comment.content,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontSize = 13.sp,
-                                        lineHeight = 18.sp
-                                    ),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, color = obsidian),
                                     modifier = Modifier.padding(start = 2.dp)
                                 )
                             }
                         }
                     }
 
-                    // Quick Comment Input: Icon Button with Dynamic Sport Color
                     Row(
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -418,7 +430,7 @@ fun PostCard(
                             modifier = Modifier.weight(1f),
                             decorationBox = { innerTextField ->
                                 if (commentText.isEmpty()) {
-                                    Text("Yorum ekle...", color = Color.Gray, fontSize = 13.sp)
+                                    Text("Add comment...", color = Color.Gray, fontSize = 13.sp)
                                 }
                                 innerTextField()
                             }
@@ -435,8 +447,8 @@ fun PostCard(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Gönder",
-                                tint = if (commentText.isNotBlank()) sportColor else Color.LightGray,
+                                contentDescription = "Send",
+                                tint = if (commentText.isNotBlank()) obsidian else Color.LightGray,
                                 modifier = Modifier.size(20.dp)
                             )
                         }

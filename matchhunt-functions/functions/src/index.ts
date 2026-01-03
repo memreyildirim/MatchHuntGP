@@ -18,24 +18,97 @@ export const onEventCreated = onDocumentCreated(
     const title = eventData?.title || "Yeni etkinlik!";
     const desc = eventData?.description || "";
     const sportType = (eventData?.sportType || "general") as string;
+    const normalizedSportType = sportType.toLowerCase().trim();
 
-    const topic = `events_${sportType.toLowerCase()}`;
+    // Event oluşturan kullanıcının ID'sini al
+    const creatorId = eventData?.createdBy || eventData?.creatorId;
+    if (!creatorId) {
+      console.log("No creatorId found for event", event.params.eventId);
+      return;
+    }
 
-    const message = {
-      topic,
-      notification: {
-        title: `Yeni ${sportType} etkinliği: ${title}`,
-        body: desc || "MatchHunt'ta yeni bir etkinlik açıldı.",
-      },
-      data: {
-        type: "event",
-        eventId: event.params.eventId,
-        sportType,
-      },
-    };
+    // Event oluşturan kullanıcının profilini al ve şehir bilgisini çıkar
+    const creatorSnap = await admin.firestore().doc(`users/${creatorId}`).get();
+    if (!creatorSnap.exists) {
+      console.log("Creator profile not found for", creatorId);
+      return;
+    }
 
-    await admin.messaging().send(message);
-    console.log("Notification sent:", event.params.eventId, "topic:", topic);
+    const creatorCity = (creatorSnap.get("city") as string) || "";
+    if (!creatorCity) {
+      console.log("Creator has no city information, skipping notification");
+      return;
+    }
+
+    // Şehir bilgisini normalize et
+    const normalizedCity = creatorCity.trim();
+
+    // COMPOSITE INDEX ile optimize edilmiş query
+    // Hem şehir hem de spor filtresi tek query'de
+    const usersSnapshot = await admin
+      .firestore()
+      .collection("users")
+      .where("city", "==", normalizedCity)
+      .where("sports", "array-contains", normalizedSportType)
+      .get();
+
+    if (usersSnapshot.empty) {
+      console.log(
+        `No users found in city: ${normalizedCity} with sport: ${normalizedSportType}`
+      );
+      return;
+    }
+
+    // Oluşturucuyu hariç tut
+    const eligibleUsers = usersSnapshot.docs.filter((doc) => doc.id !== creatorId);
+
+    if (eligibleUsers.length === 0) {
+      console.log("No eligible users after filtering creator");
+      return;
+    }
+
+    // FCM token'larını topla
+    const tokens = eligibleUsers
+      .map((doc) => doc.get("fcmToken") as string | undefined)
+      .filter((t): t is string => !!t);
+
+    if (tokens.length === 0) {
+      console.log("No FCM tokens found for eligible users");
+      return;
+    }
+
+    // Batch gönderim (FCM limit: 500 token per batch)
+    const batchSize = 500;
+    const batches: string[][] = [];
+
+    for (let i = 0; i < tokens.length; i += batchSize) {
+      batches.push(tokens.slice(i, i + batchSize));
+    }
+
+    // Her batch'i gönder
+    const sendPromises = batches.map((batch) => {
+      const message: admin.messaging.MulticastMessage = {
+        tokens: batch,
+        notification: {
+          title: `Yeni ${sportType} etkinliği: ${title}`,
+          body: desc || "MatchHunt'ta yeni bir etkinlik açıldı.",
+        },
+        data: {
+          type: "event",
+          eventId: event.params.eventId,
+          sportType,
+        },
+      };
+
+      return admin.messaging().sendEachForMulticast(message);
+    });
+
+    // Tüm batch'leri paralel gönder
+    await Promise.all(sendPromises);
+
+    console.log(
+      `Event notification sent to ${tokens.length} users in ${batches.length} batches (city: ${normalizedCity}, sport: ${normalizedSportType}) for event: ${event.params.eventId}`
+    );
   }
 );
 

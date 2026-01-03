@@ -1,6 +1,8 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.net.Uri
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -11,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -21,8 +24,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import com.google.accompanist.swiperefresh.SwipeRefreshIndicator
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,8 +52,11 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Review
+import com.emreyildirim.matchhuntv1.data.model.Post
+import com.emreyildirim.matchhuntv1.data.model.Comment
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
 import com.emreyildirim.matchhuntv1.data.repository.ReviewRepository
+import com.emreyildirim.matchhuntv1.data.repository.PostRepository
 import com.emreyildirim.matchhuntv1.ui.components.ReviewCard
 import com.emreyildirim.matchhuntv1.ui.viewmodel.AuthViewModel
 import com.emreyildirim.matchhuntv1.utils.RatingCard.RatingStatItem
@@ -53,8 +65,10 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,6 +77,7 @@ fun ProfileScreen(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
     val userRepository = UserRepository()
     val reviewRepository = ReviewRepository()
+    val postRepository = PostRepository()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -80,13 +95,23 @@ fun ProfileScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     var showReviewsSheet by remember { mutableStateOf(false) }
     var userReviews by remember { mutableStateOf<List<Review>>(emptyList()) }
+    var userPosts by remember { mutableStateOf<List<Post>>(emptyList()) }
+    var showPostDetailSheet by remember { mutableStateOf(false) }
+    var selectedPost by remember { mutableStateOf<Post?>(null) }
+    var allPostsForSheet by remember { mutableStateOf<List<Post>>(emptyList()) }
+    var isLoadingAllPosts by remember { mutableStateOf(false) }
 
     // Animasyon State'i
     var isVisible by remember { mutableStateOf(false) }
 
     val userId = remember { auth.currentUser?.uid ?: "" }
 
-    LaunchedEffect(userId) {
+    // Pull to Refresh State
+    var isRefreshing by remember { mutableStateOf(false) }
+    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing)
+
+    // Veri yükleme fonksiyonu
+    suspend fun loadProfileData() {
         if (userId.isNotEmpty()) {
             try {
                 // Önce temel profil verilerini yükle (hızlı)
@@ -99,23 +124,34 @@ fun ProfileScreen(navController: NavController) {
                     sports = (data["sports"] as? List<String>)?.filter { it.isNotEmpty() } ?: emptyList()
                     profileImageUrl = (data["profileImageUrl"] as? String) ?: ""
                 }
-                
+
                 // UI'ı göster (temel veriler yüklendi)
                 isLoading = false
                 delay(100)
                 isVisible = true
-                
+
                 // Sonra rating verilerini paralel olarak yükle (arka planda)
-                val ratingsAndCountDeferred = async { 
-                    reviewRepository.getUserRatingsAndCount(userId) 
-                }
-                
-                ratingsAndCountDeferred.await().getOrNull()?.let { (ratings, count) ->
-                    skillRating = ratings["skill"] ?: 0f
-                    behaviorRating = ratings["behavior"] ?: 0f
-                    teamRating = ratings["team"] ?: 0f
-                    averageRating = ratings["average"] ?: 0f
-                    totalReviews = count
+                coroutineScope {
+                    val ratingsAndCountDeferred = async {
+                        reviewRepository.getUserRatingsAndCount(userId)
+                    }
+                    // Sadece grid için gerekli olan ilk 6 postu yükle (optimizasyon)
+                    val postsDeferred = async {
+                        postRepository.getUserPostsLimited(userId, limit = 6)
+                    }
+
+                    ratingsAndCountDeferred.await().getOrNull()?.let { result ->
+                        val ratings = result.first
+                        val count = result.second
+                        skillRating = ratings["skill"] ?: 0f
+                        behaviorRating = ratings["behavior"] ?: 0f
+                        teamRating = ratings["team"] ?: 0f
+                        averageRating = ratings["average"] ?: 0f
+                        totalReviews = count
+                    }
+
+                    // Sadece ilk 6 postu yükle (grid için yeterli)
+                    userPosts = postsDeferred.await()
                 }
             } catch (e: Exception) {
                 isLoading = false
@@ -125,10 +161,17 @@ fun ProfileScreen(navController: NavController) {
         }
     }
 
+    LaunchedEffect(userId) {
+        if (userId.isNotEmpty()) {
+            loadProfileData()
+        }
+    }
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.secondaryContainer,
         topBar = {
             TopAppBar(
-                title = { Text("Profile", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp) },
+                title = { Text("Profile", fontWeight = FontWeight.ExtraBold, fontSize = 27.sp) },
                 actions = {
                     IconButton(onClick = {
                         navController.navigate("editProfile") {
@@ -143,13 +186,13 @@ fun ProfileScreen(navController: NavController) {
                             )
                         }
                     }) {
-                        Icon(Icons.Default.Edit, "Edit")
+                        Icon(Icons.Default.Edit,tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp),contentDescription = "Edit")
                     }
                     IconButton(onClick = {
                         authViewModel.signOut()
                         navController.navigate("login") { popUpTo("main") { inclusive = true } }
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ExitToApp, "Logout", tint = MaterialTheme.colorScheme.error)
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, modifier = Modifier.size(30.dp), contentDescription = "Logout", tint = MaterialTheme.colorScheme.error)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -157,18 +200,35 @@ fun ProfileScreen(navController: NavController) {
             )
         }
     ) { innerPadding ->
-        if (isLoading) {
-            Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+        SwipeRefresh(
+            state = swipeRefreshState,
+            onRefresh = {
+                scope.launch {
+                    isRefreshing = true
+                    loadProfileData()
+                    isRefreshing = false
+                }
+            },
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            indicator = { state, refreshTrigger ->
+                SwipeRefreshIndicator(
+                    state = state,
+                    refreshTriggerDistance = refreshTrigger,
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
             }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+        ) {
+            if (isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                 // 1. Header Section (Hero)
                 AnimatedVisibility(
                     visible = isVisible,
@@ -202,7 +262,7 @@ fun ProfileScreen(navController: NavController) {
                             modifier = Modifier.padding(top = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.LocationOn, null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Default.LocationOn, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(text = "$city • $age Years", color = Color.Gray, fontSize = 14.sp)
                         }
@@ -253,7 +313,30 @@ fun ProfileScreen(navController: NavController) {
                     }
                 }
 
+                // 5. Posts Section
+                AnimatedVisibility(
+                    visible = isVisible,
+                    enter = slideInVertically(initialOffsetY = { 400 }) + fadeIn(tween(1400))
+                ) {
+                    Column {
+                        SectionTitle(title = "My Posts", icon = Icons.Default.GridOn)
+                        UserPostsGrid(
+                            posts = userPosts,
+                            onPostClick = { post ->
+                                selectedPost = post
+                                showPostDetailSheet = true
+                            },
+                            onViewAllClick = {
+                                // Tüm postları göster
+                                selectedPost = null
+                                showPostDetailSheet = true
+                            }
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(120.dp))
+                }
             }
         }
     }
@@ -279,6 +362,81 @@ fun ProfileScreen(navController: NavController) {
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         items(userReviews) { ReviewCard(review = it) }
+                    }
+                }
+                Spacer(modifier = Modifier.height(40.dp))
+            }
+        }
+    }
+
+    // Posts BottomSheet - Lazy Loading ile tüm postları yükle
+    if (showPostDetailSheet) {
+        // Bottom sheet açıldığında tüm postları lazy olarak yükle
+        LaunchedEffect(showPostDetailSheet) {
+            if (showPostDetailSheet && allPostsForSheet.isEmpty() && !isLoadingAllPosts) {
+                isLoadingAllPosts = true
+                allPostsForSheet = postRepository.getUserPosts(userId)
+                isLoadingAllPosts = false
+            }
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = {
+                showPostDetailSheet = false
+                selectedPost = null
+                // Bottom sheet kapandığında state'i temizle (bir sonraki açılışta tekrar yüklensin)
+                allPostsForSheet = emptyList()
+            },
+            sheetState = rememberModalBottomSheetState(),
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                Text(
+                    "My Posts",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (isLoadingAllPosts) {
+                    Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else if (allPostsForSheet.isEmpty()) {
+                    Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.Image,
+                                null,
+                                modifier = Modifier.size(48.dp),
+                                tint = Color.Gray.copy(alpha = 0.5f)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("No posts yet", color = Color.Gray)
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        items(allPostsForSheet) { post ->
+                            PostDetailCard(
+                                post = post,
+                                postRepository = postRepository,
+                                currentUserId = userId,
+                                onPostDeleted = { deletedPostId ->
+                                    // Optimistic update - hemen UI'dan kaldır
+                                    userPosts = userPosts.filter { it.id != deletedPostId }
+                                    allPostsForSheet = allPostsForSheet.filter { it.id != deletedPostId }
+
+                                    // Seçili post silindiyse temizle
+                                    if (selectedPost?.id == deletedPostId) {
+                                        selectedPost = null
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(40.dp))
@@ -424,5 +582,452 @@ fun SectionTitle(title: String, icon: androidx.compose.ui.graphics.vector.ImageV
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
             color = Color.Gray
         )
+    }
+}
+
+@Composable
+fun UserPostsGrid(
+    posts: List<Post>,
+    onPostClick: (Post) -> Unit,
+    onViewAllClick: () -> Unit
+) {
+    if (posts.isEmpty()) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.Image,
+                        null,
+                        modifier = Modifier.size(48.dp),
+                        tint = Color.Gray.copy(alpha = 0.5f)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "No posts yet",
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+        ) {
+            // İlk 6 postu göster (2 satır x 3 sütun)
+            val postsToShow = posts.take(6)
+
+            repeat(2) { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    repeat(3) { col ->
+                        val index = row * 3 + col
+                        if (index < postsToShow.size) {
+                            val post = postsToShow[index]
+                            PostThumbnail(
+                                post = post,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f)
+                                    .clickable { onPostClick(post) }
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+                if (row < 1) Spacer(modifier = Modifier.height(2.dp))
+            }
+
+            // Eğer 6'dan fazla post varsa "View All" butonu
+            if (posts.size > 6) {
+                Spacer(modifier = Modifier.height(12.dp))
+                TextButton(
+                    onClick = onViewAllClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "View All ${posts.size} Posts",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PostThumbnail(
+    post: Post,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(post.imageUrl)
+                .crossfade(true)
+                .build(),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop
+        )
+
+        // Overlay - beğeni ve yorum sayısı
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.4f)
+                        )
+                    )
+                )
+        )
+
+        // İstatistikler
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Favorite,
+                null,
+                modifier = Modifier.size(12.dp),
+                tint = Color.White
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                "${post.likes}",
+                color = Color.White,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+fun PostDetailCard(
+    post: Post,
+    postRepository: PostRepository,
+    currentUserId: String,
+    onPostDeleted: (String) -> Unit = {}
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val userRepository = remember { UserRepository() }
+    val auth = FirebaseAuth.getInstance()
+    var profileImageUrl by remember { mutableStateOf("") }
+    var isLiked by remember(post.likedBy) { mutableStateOf(post.likedBy.contains(currentUserId)) }
+    var likeCount by remember(post.likes) { mutableStateOf(post.likes) }
+    var showComments by remember { mutableStateOf(false) }
+    var commentText by remember { mutableStateOf("") }
+    var comments by remember { mutableStateOf<List<Comment>>(emptyList()) }
+    var currentUserName by remember { mutableStateOf("") }
+    var showMenu by remember { mutableStateOf(false) }
+    val sportColor = Sports.getSportInfo(post.sportType)?.color ?: MaterialTheme.colorScheme.primary
+
+    LaunchedEffect(post.userId) {
+        val userData = userRepository.getUserProfileData(post.userId)
+        profileImageUrl = (userData?.get("profileImageUrl") as? String) ?: ""
+    }
+
+    LaunchedEffect(currentUserId) {
+        val userData = userRepository.getUserProfileData(currentUserId)
+        currentUserName = (userData?.get("username") as? String) ?: ""
+    }
+
+    LaunchedEffect(showComments, post.id) {
+        if (showComments && comments.isEmpty()) {
+            comments = postRepository.getComments(post.id)
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column {
+            // Header: User Info
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(profileImageUrl.ifEmpty { R.drawable.ic_profile_placeholder })
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+                Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                    Text(post.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        SimpleDateFormat("d MMM, HH:mm", Locale.getDefault()).format(post.createdAt),
+                        fontSize = 11.sp, color = Color.Gray
+                    )
+                }
+                Surface(
+                    color = sportColor.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        post.sportType,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        color = sportColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            null,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Postu Sil") },
+                            onClick = {
+                                showMenu = false
+                                scope.launch {
+                                    // Optimistic update - önce UI'dan kaldır
+                                    onPostDeleted(post.id)
+
+                                    // Sonra silme işlemini yap
+                                    postRepository.deletePost(postId = post.id, userId = currentUserId)
+                                        .onSuccess {
+                                            Toast.makeText(context, "Post silindi", Toast.LENGTH_SHORT).show()
+                                            Log.d("PostDetailCard", "Post deleted successfully")
+                                        }
+                                        .onFailure { error ->
+                                            Toast.makeText(context, "Hata: ${error.message}", Toast.LENGTH_SHORT).show()
+                                            Log.e("PostDetailCard", "Error deleting post", error)
+                                        }
+                                }
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Paylaş") },
+                            onClick = {
+                                showMenu = false
+                                // TODO: Paylaş işlemi
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Şikayet Et") },
+                            onClick = {
+                                showMenu = false
+                                // TODO: Şikayet etme işlemi
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Body: Main Content (Image)
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(post.imageUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1.1f)
+                    .padding(horizontal = 8.dp)
+                    .clip(RoundedCornerShape(20.dp)),
+                contentScale = ContentScale.Crop
+            )
+
+            // Actions Bar
+            Row(
+                modifier = Modifier.padding(start = 8.dp, end = 12.dp, top = 8.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = {
+                    scope.launch {
+                        isLiked = !isLiked
+                        likeCount = if (isLiked) likeCount + 1 else likeCount - 1
+                        postRepository.likePost(post.id, currentUserId)
+                    }
+                }) {
+                    Icon(
+                        imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = "Like",
+                        tint = if (isLiked) Color.Red else Color.Black,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+                Text("${likeCount}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(onClick = { showComments = !showComments }) {
+                    Icon(Icons.Outlined.ChatBubbleOutline, null, modifier = Modifier.size(24.dp))
+                }
+                Text("${if (comments.isNotEmpty()) comments.size else post.comments.size}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            }
+
+            // Description
+            if (post.description.isNotBlank()) {
+                Text(
+                    text = post.description,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Comments Section
+            AnimatedVisibility(
+                visible = showComments,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .background(Color(0xFFF9FAFB))
+                        .padding(bottom = 12.dp)
+                ) {
+                    HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.3f))
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Comment List
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        comments.forEach { comment ->
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = comment.userName,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 13.sp
+                                        )
+                                    )
+                                    Text(
+                                        text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(comment.createdAt),
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = Color.Gray,
+                                            fontSize = 10.sp
+                                        )
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = comment.content,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 13.sp,
+                                        lineHeight = 18.sp
+                                    ),
+                                    modifier = Modifier.padding(start = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Comment Input
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .fillMaxWidth()
+                            .background(Color.White, RoundedCornerShape(24.dp))
+                            .border(0.5.dp, Color.LightGray.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                            .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BasicTextField(
+                            value = commentText,
+                            onValueChange = { commentText = it },
+                            modifier = Modifier.weight(1f),
+                            decorationBox = { innerTextField ->
+                                if (commentText.isEmpty()) {
+                                    Text("Add a comment...", color = Color.Gray, fontSize = 13.sp)
+                                }
+                                innerTextField()
+                            }
+                        )
+
+                        IconButton(
+                            onClick = {
+                                if (commentText.isNotBlank()) {
+                                    scope.launch {
+                                        val newComment = Comment(
+                                            id = UUID.randomUUID().toString(),
+                                            postId = post.id,
+                                            userId = currentUserId,
+                                            userName = currentUserName,
+                                            content = commentText,
+                                            createdAt = Date()
+                                        )
+                                        postRepository.addComment(post.id, newComment)
+                                        comments = comments + newComment
+                                        commentText = ""
+                                    }
+                                }
+                            },
+                            enabled = commentText.isNotBlank()
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Send",
+                                tint = if (commentText.isNotBlank()) sportColor else Color.LightGray,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }

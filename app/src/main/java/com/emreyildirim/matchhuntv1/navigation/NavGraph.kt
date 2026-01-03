@@ -139,7 +139,8 @@ fun AppNavigation() {
                 },
                 onNavigateToProfile = { userId ->
                     navController.navigate("user_profile/$userId")
-                }
+                },
+                messageViewModel = messageViewModel // Paylaşılan instance'ı geç
             )
         }
         composable("createPost") {

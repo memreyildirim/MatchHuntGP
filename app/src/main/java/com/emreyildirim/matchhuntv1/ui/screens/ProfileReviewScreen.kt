@@ -112,10 +112,10 @@ fun ProfileReviewScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("User Profile", fontWeight = FontWeight.Bold) },
+                title = { Text("Kullanıcı Profili", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
@@ -144,14 +144,15 @@ fun ProfileReviewScreen(
 
                     ProfileHeaderSection(
                         profileImageUrl = userProfile?.profileImageUrl ?: "",
-                        username = userProfile?.username ?: "Unknown User",
-                        location = userProfile?.city ?: "Location not set",
+                        username = userProfile?.username ?: "Bilinmeyen Kullanıcı",
+                        location = userProfile?.city ?: "Konum belirtilmedi",
+                        age = userProfile?.age, // Yaş bilgisini buradan aktarıyoruz
                         onMessageClick = { navController.navigate("messages/${userId}") }
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // --- İSTEDİĞİN MODERN RATING KARTI TASARIMI ---
+                    // Rating Kartı Tasarımı
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -166,10 +167,9 @@ fun ProfileReviewScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                // Sol Kısım: Ortalama Puan Başlığı ve Değeri
                                 Column {
                                     Text(
-                                        text = "Overall Rating",
+                                        text = "Genel Puan",
                                         color = Color.Gray,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
@@ -192,7 +192,6 @@ fun ProfileReviewScreen(
                                     }
                                 }
 
-                                // Sağ Kısım: Yorum Sayısı Bilgisi (Tıklanabilir)
                                 Surface(
                                     onClick = { showReviewsSheet = true },
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
@@ -208,7 +207,7 @@ fun ProfileReviewScreen(
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                         Text(
-                                            text = "Reviews",
+                                            text = "Değerlendirme",
                                             color = MaterialTheme.colorScheme.primary,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold
@@ -217,21 +216,19 @@ fun ProfileReviewScreen(
                                 }
                             }
 
-                            // Ayırıcı Çizgi
                             HorizontalDivider(
                                 modifier = Modifier.padding(vertical = 16.dp),
                                 thickness = 0.5.dp,
                                 color = Color.LightGray.copy(alpha = 0.5f)
                             )
 
-                            // Alt Satır: Üçlü Detaylı Rating Bilgileri
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                RatingStatItem(label = "Skill", value = skillRating)
-                                RatingStatItem(label = "Behavior", value = behaviorRating)
-                                RatingStatItem(label = "Cohesion", value = teamRating)
+                                RatingStatItem(label = "Beceri", value = skillRating)
+                                RatingStatItem(label = "Davranış", value = behaviorRating)
+                                RatingStatItem(label = "Uyum", value = teamRating)
                             }
                         }
                     }
@@ -239,7 +236,7 @@ fun ProfileReviewScreen(
                     Spacer(modifier = Modifier.height(32.dp))
 
                     if (!userProfile?.about.isNullOrEmpty()) {
-                        SectionHeader("About Me")
+                        SectionHeader("Hakkımda")
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
@@ -258,15 +255,15 @@ fun ProfileReviewScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     if (!userProfile?.sports.isNullOrEmpty()) {
-                        SectionHeader("Interests")
+                        SectionHeader("İlgi Alanları")
                         InterestsRow(userProfile?.sports ?: emptyList())
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    EventCarousel("Created Events", createdEvents)
+                    EventCarousel("Oluşturulan Etkinlikler", createdEvents)
                     Spacer(modifier = Modifier.height(24.dp))
-                    EventCarousel("Participated Events", participatedEvents)
+                    EventCarousel("Katılınan Etkinlikler", participatedEvents)
 
                     Spacer(modifier = Modifier.height(60.dp))
                 }
@@ -286,7 +283,7 @@ fun ProfileReviewScreen(
                         .padding(bottom = 32.dp)
                 ) {
                     Text(
-                        text = "Reviews",
+                        text = "Değerlendirmeler",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 16.dp)
@@ -294,7 +291,7 @@ fun ProfileReviewScreen(
 
                     if (userReviews.isEmpty()) {
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-                            Text("No reviews yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Henüz değerlendirme yok.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         LazyColumn(
@@ -317,6 +314,7 @@ fun ProfileHeaderSection(
     profileImageUrl: String,
     username: String,
     location: String,
+    age: Int? = null,
     onMessageClick: () -> Unit
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -329,7 +327,7 @@ fun ProfileHeaderSection(
             ) {
                 AsyncImage(
                     model = profileImageUrl,
-                    contentDescription = "Profile",
+                    contentDescription = "Profil",
                     modifier = Modifier.fillMaxSize().clip(CircleShape),
                     contentScale = ContentScale.Crop,
                     error = painterResource(id = R.drawable.ic_profile_placeholder)
@@ -342,7 +340,7 @@ fun ProfileHeaderSection(
                 shape = CircleShape,
                 modifier = Modifier.offset(x = (-4).dp, y = (-4).dp)
             ) {
-                Icon(Icons.AutoMirrored.Filled.Message, contentDescription = "Message", modifier = Modifier.size(20.dp))
+                Icon(Icons.AutoMirrored.Filled.Message, contentDescription = "Mesaj", modifier = Modifier.size(20.dp))
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -350,7 +348,21 @@ fun ProfileHeaderSection(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
             Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(4.dp))
-            Text(text = location, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            // Konum ve Yaş Bilgisi
+            val headerSubText = buildString {
+                append(location)
+                if (age != null) {
+                    append(" · ")
+                    append(age)
+                }
+            }
+
+            Text(
+                text = headerSubText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -409,7 +421,7 @@ fun EventCarousel(title: String, events: List<Event>) {
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("No events yet", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                    Text("Henüz etkinlik yok", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
                 }
             }
         } else {
