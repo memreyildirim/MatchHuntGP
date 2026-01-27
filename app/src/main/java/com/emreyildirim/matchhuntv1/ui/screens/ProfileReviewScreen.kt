@@ -1,7 +1,6 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.util.Log
-import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -19,13 +18,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,12 +65,12 @@ fun ProfileReviewScreen(
     var showReviewsSheet by remember { mutableStateOf(false) }
 
     // Etkinlik Verileri
-    val events by viewModel.events.collectAsState()
-    val createdEvents = remember(events, userId) { events.filter { it.createdBy == userId } }
-    val participatedEvents = remember(events, userId) { events.filter { it.participants.contains(userId) } }
+    val createdEvents by viewModel.createdEventsForUser.collectAsState()
+    val participatedEvents by viewModel.participatedPastEventsForUser.collectAsState()
 
     // Veri Çekme Mantığı
     LaunchedEffect(userId) {
+        Log.d("ProfileReviewScreen", "LaunchedEffect started for userId=$userId")
         val firestore = FirebaseFirestore.getInstance()
         try {
             viewModel.loadEventsForUserReviewScreen(userId = userId)
@@ -101,13 +97,13 @@ fun ProfileReviewScreen(
         }
     }
 
-    val backgroundGradient = Brush.verticalGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-            MaterialTheme.colorScheme.surface,
-            MaterialTheme.colorScheme.surface
+    // Event listeleri gerçekten güncelleniyor mu görmek için ek log
+    LaunchedEffect(createdEvents, participatedEvents) {
+        Log.d(
+            "ProfileReviewScreen",
+            "Events updated for userId=$userId createdEvents=${createdEvents.size} participatedEvents=${participatedEvents.size}"
         )
-    )
+    }
 
     Scaffold(
         topBar = {
@@ -130,7 +126,6 @@ fun ProfileReviewScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(backgroundGradient)
                     .padding(paddingValues)
             ) {
                 Column(
@@ -194,7 +189,7 @@ fun ProfileReviewScreen(
 
                                 Surface(
                                     onClick = { showReviewsSheet = true },
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
                                     shape = RoundedCornerShape(16.dp)
                                 ) {
                                     Column(
@@ -240,7 +235,7 @@ fun ProfileReviewScreen(
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            color = MaterialTheme.colorScheme.surface
                         ) {
                             Text(
                                 text = userProfile?.about ?: "",
@@ -261,9 +256,9 @@ fun ProfileReviewScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    EventCarousel("Oluşturulan Etkinlikler", createdEvents)
+                    EventCarousel("Oluşturulan Son 6 Etkinlik", createdEvents)
                     Spacer(modifier = Modifier.height(24.dp))
-                    EventCarousel("Katılınan Etkinlikler", participatedEvents)
+                    EventCarousel("Son Katılınan 6 Etkinlik", participatedEvents)
 
                     Spacer(modifier = Modifier.height(60.dp))
                 }
@@ -272,6 +267,7 @@ fun ProfileReviewScreen(
 
         if (showReviewsSheet) {
             ModalBottomSheet(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 onDismissRequest = { showReviewsSheet = false },
                 sheetState = bottomSheetState,
                 dragHandle = { BottomSheetDefaults.DragHandle() }

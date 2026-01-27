@@ -68,6 +68,7 @@ val MutedTextDark = Color(0xFF9EA7AD)
 // --- GENEL RENKLER ---
 val PureWhite = Color(0xFFFFFFFF)
 val ErrorRed = Color(0xFFE74C3C)
+val AcceptGreen = Color(0xFF2ECC71)
 val AppBackground = Color(0xFFF8F9FA)
 val ContentBlack = Color(0xFF1A1A1B)
 val MutedGray = Color(0xFF95A5A6)

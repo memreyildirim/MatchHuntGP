@@ -1,34 +1,33 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import androidx.compose.animation.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,6 +37,8 @@ import coil.request.ImageRequest
 import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.utils.Cities
 import com.emreyildirim.matchhuntv1.utils.Sports
+import com.emreyildirim.matchhuntv1.utils.NetworkUtils
+import com.emreyildirim.matchhuntv1.utils.withNetworkTimeout
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
 import com.emreyildirim.matchhuntv1.ui.viewmodel.AuthViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -48,10 +49,11 @@ import kotlinx.coroutines.launch
 fun EditProfileScreen(navController: NavController) {
     val authViewModel: AuthViewModel = viewModel()
     val auth = FirebaseAuth.getInstance()
-    val userRepository = UserRepository()
+    val userRepository = remember { UserRepository() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    // State Variables
     var username by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
     var selectedCity by remember { mutableStateOf("") }
@@ -62,15 +64,23 @@ fun EditProfileScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isCityDropdownExpanded by remember { mutableStateOf(false) }
 
-    // Mevcut profil bilgilerini al
+    // Navigation Argument Handling
     val profileData = navController.currentBackStackEntry?.savedStateHandle?.get<Map<String, String>>("profileData")
-    
+
+    // Initial Data Loading
     LaunchedEffect(Unit) {
-        // Eğer profileData null ise, doğrudan Firestore'dan verileri al
         if (profileData == null) {
             try {
+                // Network kontrolü
+                if (!NetworkUtils.isNetworkAvailable(context)) {
+                    errorMessage = "İnternet bağlantısı bulunamadı"
+                    return@LaunchedEffect
+                }
+                
                 val userId = auth.currentUser?.uid ?: return@LaunchedEffect
-                val userData = userRepository.getUserProfileData(userId)
+                val userData = withNetworkTimeout {
+                    userRepository.getUserProfileData(userId)
+                }
                 userData?.let { data ->
                     username = (data["username"] as? String) ?: ""
                     age = (data["age"] as? Number)?.toString() ?: ""
@@ -78,17 +88,16 @@ fun EditProfileScreen(navController: NavController) {
                     about = (data["about"] as? String) ?: ""
                     selectedSports = (data["sports"] as? List<String>)?.filter { it.isNotEmpty() } ?: emptyList()
                     (data["profileImageUrl"] as? String)?.let { url ->
-                        if (url.isNotEmpty()) {
-                            profileImageUri = Uri.parse(url)
-                        }
+                        if (url.isNotEmpty()) profileImageUri = Uri.parse(url)
                     }
                 }
             } catch (e: Exception) {
-                errorMessage = "An error occurred while fetching user data: ${e.message}"
+                errorMessage = NetworkUtils.getErrorMessage(e)
             }
         }
     }
-    
+
+    // Handle Profile Data from Arguments
     LaunchedEffect(profileData) {
         profileData?.let { data ->
             username = data["username"] ?: ""
@@ -96,10 +105,8 @@ fun EditProfileScreen(navController: NavController) {
             selectedCity = data["city"] ?: ""
             about = data["about"] ?: ""
             selectedSports = (data["sports"] ?: "").split(",").filter { it.isNotEmpty() }
-            data["profileImageUrl"]?.let { url ->
-                if (url.isNotEmpty()) {
-                    profileImageUri = Uri.parse(url)
-                }
+            data["photoUrl"]?.let { url -> // "profileImageUrl" instead of "photoUrl" depends on your nav logic, fixed to common usage
+                if (url.isNotEmpty()) profileImageUri = Uri.parse(url)
             }
         }
     }
@@ -107,37 +114,30 @@ fun EditProfileScreen(navController: NavController) {
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        profileImageUri = uri
+        if (uri != null) profileImageUri = uri
     }
 
     Scaffold(
+        containerColor = SoftGray,
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "Edit Profile",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
+                        text = "PROFILI DÜZENLE",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 2.sp,
+                            color = Obsidian
                         )
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                ),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = SoftGray),
                 navigationIcon = {
-                    IconButton(
-                        onClick = { navController.navigateUp() },
-                        modifier = Modifier
-                            .padding(8.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
+                    IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.primary
+                            contentDescription = "Geri",
+                            tint = Obsidian
                         )
                     }
                 }
@@ -149,272 +149,291 @@ fun EditProfileScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profil Fotoğrafı
+            // Profile Image Section
             Box(
                 modifier = Modifier
-                    .size(140.dp)
-                    .padding(vertical = 24.dp)
-                    .clip(CircleShape)
-                    .shadow(
-                        elevation = 8.dp,
-                        shape = CircleShape,
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                    )
+                    .padding(top = 24.dp, bottom = 32.dp)
+                    .size(130.dp)
             ) {
-                if (profileImageUri != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .border(3.dp, BrandVolt, CircleShape)
+                        .padding(5.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                ) {
                     Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(context)
-                                .data(profileImageUri)
-                                .crossfade(true)
-                                .build()
-                        ),
-                        contentDescription = "Profile Image",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_profile_placeholder),
-                        contentDescription = "Profile Image",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primaryContainer,
-                                        MaterialTheme.colorScheme.secondaryContainer
-                                    )
-                                )
-                            ),
+                        painter = if (profileImageUri != null) {
+                            rememberAsyncImagePainter(
+                                ImageRequest.Builder(context)
+                                    .data(profileImageUri)
+                                    .crossfade(true)
+                                    .build()
+                            )
+                        } else {
+                            painterResource(id = R.drawable.ic_profile_placeholder)
+                        },
+                        contentDescription = "Profil Resmi",
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 }
 
-                IconButton(
-                    onClick = { imagePicker.launch("image/*") },
+                // Camera Action Button
+                Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .background(
-                            MaterialTheme.colorScheme.primary,
-                            CircleShape
-                        )
-                        .padding(8.dp)
-                        .shadow(
-                            elevation = 4.dp,
-                            shape = CircleShape,
-                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                        )
+                        .size(40.dp)
+                        .background(Obsidian, CircleShape)
+                        .border(2.dp, BrandVolt, CircleShape)
+                        .clickable { imagePicker.launch("image/*") },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Add Photo",
-                        tint = MaterialTheme.colorScheme.onPrimary
+                        contentDescription = "Fotoğraf Ekle",
+                        tint = BrandVolt,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            // Kullanıcı Adı
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Username") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+            // Input Fields
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = age,
-                onValueChange = { age = it },
-                label = { Text("Age") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Şehir Seçimi (Dropdown)
-            ExposedDropdownMenuBox(
-                expanded = isCityDropdownExpanded,
-                onExpandedChange = { isCityDropdownExpanded = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-            ) {
+                // Username
                 OutlinedTextField(
-                    value = selectedCity,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { 
-                        Text(
-                            "City",
-                            style = MaterialTheme.typography.labelLarge
-                        ) 
-                    },
-                    trailingIcon = { 
-                        ExposedDropdownMenuDefaults.TrailingIcon(
-                            expanded = isCityDropdownExpanded
-                        ) 
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    shape = RoundedCornerShape(12.dp),
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Kullanıcı Adı") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                // Age
+                OutlinedTextField(
+                    value = age,
+                    onValueChange = { age = it },
+                    label = { Text("Yaş") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                // City Selection
+                ExposedDropdownMenuBox(
+                    expanded = isCityDropdownExpanded,
+                    onExpandedChange = { isCityDropdownExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedCity,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Şehir") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCityDropdownExpanded) },
+                        leadingIcon = { Icon(Icons.Default.LocationOn, null, tint = Obsidian) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Obsidian,
+                            unfocusedBorderColor = Color.LightGray,
+                            focusedLabelColor = Obsidian,
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
+                        )
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = isCityDropdownExpanded,
+                        onDismissRequest = { isCityDropdownExpanded = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        Cities.list.forEach { city ->
+                            DropdownMenuItem(
+                                text = { Text(city) },
+                                onClick = {
+                                    selectedCity = city
+                                    isCityDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // About
+                OutlinedTextField(
+                    value = about,
+                    onValueChange = { about = it },
+                    label = { Text("Hakkımda (Opsiyonel)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 5,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
                     )
                 )
-                
-                ExposedDropdownMenu(
-                    expanded = isCityDropdownExpanded,
-                    onDismissRequest = { isCityDropdownExpanded = false },
-                    modifier = Modifier
-                        .background(
-                            MaterialTheme.colorScheme.surface,
-                            RoundedCornerShape(12.dp)
-                        )
-                ) {
-                    Cities.list.forEach { city ->
-                        DropdownMenuItem(
-                            text = { 
-                                Text(
-                                    city,
-                                    style = MaterialTheme.typography.bodyLarge
-                                ) 
-                            },
-                            onClick = {
-                                selectedCity = city
-                                isCityDropdownExpanded = false
-                            }
-                        )
+            }
+
+            // Interests Header
+            Row(
+                Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Interests, null, modifier = Modifier.size(18.dp), tint = Obsidian)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "İLGİ ALANLARI",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        color = Color.Gray
+                    )
+                )
+            }
+
+            // Sports Horizontal List
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 4.dp)
+            ) {
+                items(Sports.allSports) { sportInfo ->
+                    val key = sportInfo.nameEn.lowercase()
+                    val isSelected = selectedSports.contains(key)
+                    val sportColor = sportInfo.color
+
+                    Surface(
+                        modifier = Modifier.clickable {
+                            selectedSports = if (isSelected) selectedSports - key else selectedSports + key
+                        },
+                        color = if (isSelected) Obsidian else Color.White,
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, if (isSelected) Obsidian else Color.LightGray.copy(alpha = 0.5f)),
+                        shadowElevation = if (isSelected) 4.dp else 0.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                painter = painterResource(id = sportInfo.iconResId),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = sportInfo.nameEn.uppercase(),
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp,
+                                color = if (isSelected) sportColor else Color.Gray
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            OutlinedTextField(
-                value = about,
-                onValueChange = { about = it },
-                label = { Text("About (Optional)") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                maxLines = 5
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // İlgi Alanları Başlığı
-            Text(
-                text = "Interest",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-            )
-            
-            // İlgi Alanları Listesi
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(Sports.allSports) { sportInfo ->
-                    val key = sportInfo.nameEn.lowercase()   // "Football" -> "football"
-                    val label = sportInfo.name               // ekranda görünen: "Futbol"
-
-                    FilterChip(
-                        selected = selectedSports.contains(key),
-                        onClick = {
-                            selectedSports = if (selectedSports.contains(key)) {
-                                selectedSports - key
-                            } else {
-                                selectedSports + key
-                            }
-                        },
-                        label = {
-                            Text(label)
-                        },
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
+            // Error Message
+            AnimatedVisibility(visible = errorMessage != null) {
+                Text(
+                    text = errorMessage ?: "",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    textAlign = TextAlign.Center
+                )
             }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Kaydet Butonu
+
+            // Save Button
             Button(
                 onClick = {
                     if (username.isBlank() || age.isBlank() || selectedCity.isBlank() || selectedSports.isEmpty()) {
-                        errorMessage = "PLease fill the all space"
+                        errorMessage = "Lütfen tüm zorunlu alanları doldurun."
                         return@Button
                     }
-                    
+
                     scope.launch {
                         try {
                             isLoading = true
+                            errorMessage = null
+                            
+                            // Network kontrolü
+                            if (!NetworkUtils.isNetworkAvailable(context)) {
+                                errorMessage = "İnternet bağlantısı bulunamadı. Lütfen bağlantınızı kontrol edin."
+                                isLoading = false
+                                return@launch
+                            }
+                            
                             val userId = auth.currentUser?.uid ?: return@launch
-                            
-                            // Mevcut profil fotoğrafı URL'sini al
+
                             var photoUrl = ""
-                            val userData = userRepository.getUserProfileData(userId)
+                            val userData = withNetworkTimeout {
+                                userRepository.getUserProfileData(userId)
+                            }
                             photoUrl = (userData?.get("profileImageUrl") as? String) ?: ""
-                            
-                            // Eğer yeni bir fotoğraf seçildiyse ve mevcut fotoğraftan farklıysa
-                            if (profileImageUri != null && profileImageUri.toString() != photoUrl) {
+
+                            // Image Upload Logic - fotoğraf yükleme için daha uzun timeout
+                            if (profileImageUri != null && !profileImageUri.toString().startsWith("http")) {
                                 try {
-                                    // Yeni fotoğrafı yükle
-                                    photoUrl = userRepository.uploadProfileImage(userId, profileImageUri!!)
+                                    photoUrl = withNetworkTimeout(NetworkUtils.UPLOAD_TIMEOUT_MS) {
+                                        userRepository.uploadProfileImage(userId, profileImageUri!!)
+                                    }
                                 } catch (e: Exception) {
-                                    println("Fotoğraf güncellenirken hata: ${e.message}")
+                                    errorMessage = NetworkUtils.getErrorMessage(e)
+                                    isLoading = false
+                                    return@launch
                                 }
                             }
-                            
-                            // Profil bilgilerini güncelle
-                            userRepository.createUserProfile(
-                                userId = userId,
-                                username = username,
-                                age = age.toInt(),
-                                city = selectedCity,
-                                sports = selectedSports.map { it.lowercase() }, // push notif için lowercase save ettik
-                                about = about
-                            )
-                            
-                            // Profil fotoğrafını güncelle
-                            if (photoUrl.isNotEmpty()) {
-                                userRepository.updateProfileImage(userId, photoUrl)
+
+                            // Create/Update Profile
+                            withNetworkTimeout {
+                                userRepository.createUserProfile(
+                                    userId = userId,
+                                    username = username,
+                                    age = age.toIntOrNull() ?: 0,
+                                    city = selectedCity,
+                                    sports = selectedSports,
+                                    about = about
+                                )
                             }
-                            
-                            // ProfileScreen'e güncelleme bilgisi gönder
+
+                            if (photoUrl.isNotEmpty()) {
+                                withNetworkTimeout {
+                                    userRepository.updateProfileImage(userId, photoUrl)
+                                }
+                            }
+
+                            Toast.makeText(context, "Profil güncellendi", Toast.LENGTH_SHORT).show()
                             navController.previousBackStackEntry?.savedStateHandle?.set("profileUpdated", true)
                             navController.navigateUp()
                         } catch (e: Exception) {
-                            errorMessage = "Profil güncellenirken bir hata oluştu: ${e.message}"
+                            errorMessage = NetworkUtils.getErrorMessage(e)
                         } finally {
                             isLoading = false
                         }
@@ -422,52 +441,30 @@ fun EditProfileScreen(navController: NavController) {
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
                     .height(56.dp)
-                    .shadow(
-                        elevation = 4.dp,
-                        shape = RoundedCornerShape(16.dp),
-                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                    ),
+                    .shadow(if (isLoading) 0.dp else 4.dp, RoundedCornerShape(16.dp)),
                 enabled = !isLoading,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = Obsidian,
+                    contentColor = BrandVolt,
+                    disabledContainerColor = Obsidian.copy(alpha = 0.7f)
                 )
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = BrandVolt)
                 } else {
                     Text(
-                        text = "Save the changes",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                        text = "DEĞIŞIKLIKLERI KAYDET",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
                         )
                     )
                 }
             }
-            
-            // Hata Mesajı
-            errorMessage?.let { message ->
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
-                            RoundedCornerShape(8.dp)
-                        )
-                        .padding(12.dp)
-                )
-            }
+
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

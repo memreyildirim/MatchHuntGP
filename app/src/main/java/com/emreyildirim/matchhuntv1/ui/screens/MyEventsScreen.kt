@@ -553,6 +553,7 @@ fun MyCreatedEventCard(
     // Show join requests dialog
     if (expandedRequesterId == event.id) {
         AlertDialog(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
             onDismissRequest = { expandedRequesterId = null },
             title = { Text("Participation Requests") },
             text = {
@@ -933,7 +934,8 @@ fun MyParticipatedEventCard(
     if (showEventDetails) {
         ModalBottomSheet(
             onDismissRequest = { showEventDetails = false },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
         ) {
             Column(
                 modifier = Modifier

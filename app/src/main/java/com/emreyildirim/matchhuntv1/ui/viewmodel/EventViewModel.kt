@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.emreyildirim.matchhuntv1.data.model.Event
+import com.emreyildirim.matchhuntv1.utils.NetworkUtils
+import com.emreyildirim.matchhuntv1.utils.withNetworkTimeout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -18,12 +20,21 @@ import java.util.*
 
 
 class EventViewModel : ViewModel() {
+    private val TAG = "EventViewModel"
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
     private val eventsCollection = firestore.collection("events")
     
     private val _events = MutableStateFlow<List<Event>>(emptyList())
     val events: StateFlow<List<Event>> = _events.asStateFlow()
+
+    // ProfileReviewScreen gibi ekranlarda "oluşturulan" ve "katılınan" etkinlikleri ayrı ayrı göstermek için.
+    // Mevcut _events akışını bozmayacak şekilde ek state'ler.
+    private val _createdEventsForUser = MutableStateFlow<List<Event>>(emptyList())
+    val createdEventsForUser: StateFlow<List<Event>> = _createdEventsForUser.asStateFlow()
+
+    private val _participatedPastEventsForUser = MutableStateFlow<List<Event>>(emptyList())
+    val participatedPastEventsForUser: StateFlow<List<Event>> = _participatedPastEventsForUser.asStateFlow()
     
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -50,10 +61,12 @@ class EventViewModel : ViewModel() {
                 val currentDate = Date()
                 val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
                 
-                val snapshot = firestore.collection("events")
-                    .orderBy("createdAt", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
+                val snapshot = withNetworkTimeout {
+                    firestore.collection("events")
+                        .orderBy("createdAt", Query.Direction.DESCENDING)
+                        .get()
+                        .await()
+                }
                 
                 val eventsList = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(Event::class.java)?.copy(id = doc.id)
@@ -67,7 +80,7 @@ class EventViewModel : ViewModel() {
                 _events.value = eventsList
                 _error.value = null
             } catch (e: Exception) {
-                _error.value = e.message ?: "Etkinlikler yüklenirken bir hata oluştu"
+                _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -90,10 +103,12 @@ class EventViewModel : ViewModel() {
                     return@launch
                 }
                 
-                val snapshot = firestore.collection("events")
-                    .orderBy("createdAt", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
+                val snapshot = withNetworkTimeout {
+                    firestore.collection("events")
+                        .orderBy("createdAt", Query.Direction.DESCENDING)
+                        .get()
+                        .await()
+                }
                 
                 val eventsList = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(Event::class.java)?.copy(id = doc.id)
@@ -109,7 +124,7 @@ class EventViewModel : ViewModel() {
                 _events.value = eventsList
                 _error.value = null
             } catch (e: Exception) {
-                _error.value = e.message ?: "Geçmiş etkinlikler yüklenirken bir hata oluştu"
+                _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -130,10 +145,12 @@ class EventViewModel : ViewModel() {
                     return@launch
                 }
                 
-                val snapshot = firestore.collection("events")
-                    .orderBy("createdAt", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
+                val snapshot = withNetworkTimeout {
+                    firestore.collection("events")
+                        .orderBy("createdAt", Query.Direction.DESCENDING)
+                        .get()
+                        .await()
+                }
                 
                 val eventsList = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(Event::class.java)?.copy(id = doc.id)
@@ -145,7 +162,7 @@ class EventViewModel : ViewModel() {
                 _events.value = eventsList
                 _error.value = null
             } catch (e: Exception) {
-                _error.value = e.message ?: "Etkinlikler yüklenirken bir hata oluştu"
+                _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -156,23 +173,56 @@ class EventViewModel : ViewModel() {
     fun loadEventsForUserReviewScreen(userId: String) {
         viewModelScope.launch {
             try {
+                Log.d(TAG, "loadEventsForUserReviewScreen started for userId=$userId")
                 _isLoading.value = true
                 _error.value = null
+                // Not: ProfileReviewScreen "oluşturulan" için createdAt, "katılınan (tamamlanan)" için endDate'e göre liste istiyor.
+                // Bu yüzden iki ayrı query yapıp her birine limit uyguluyoruz.
+                val createdLimit = 6L
+                val participatedLimit = 6L
 
-                val snapshot = firestore.collection("events")
-                    .orderBy("createdAt", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
-
-                val eventsList = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Event::class.java)?.copy(id = doc.id)
-                }.filter { event ->
-                    event.createdBy == userId || event.participants.contains(userId)
+                val createdSnapshot = withNetworkTimeout {
+                    firestore.collection("events")
+                        .whereEqualTo("createdBy", userId)
+                        .orderBy("createdAt", Query.Direction.DESCENDING)
+                        .limit(createdLimit)
+                        .get()
+                        .await()
                 }
 
-                _events.value = eventsList
+                val createdEvents = createdSnapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Event::class.java)?.copy(id = doc.id)
+                }
+                Log.d(TAG, "loadEventsForUserReviewScreen createdEvents size=${createdEvents.size} userId=$userId")
+                _createdEventsForUser.value = createdEvents
+
+                val now = Date()
+                val participatedSnapshot = withNetworkTimeout {
+                    firestore.collection("events")
+                        .whereArrayContains("participants", userId)
+                        // "Tamamlanan" etkinlikler: endDate < now
+                        .whereLessThan("endDate", now)
+                        .orderBy("endDate", Query.Direction.DESCENDING)
+                        .limit(participatedLimit)
+                        .get()
+                        .await()
+                }
+
+                val participatedPastEvents = participatedSnapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Event::class.java)?.copy(id = doc.id)
+                }
+                Log.d(
+                    TAG,
+                    "loadEventsForUserReviewScreen participatedPastEvents size=${participatedPastEvents.size} userId=$userId now=$now"
+                )
+                _participatedPastEventsForUser.value = participatedPastEvents
+
+                // Geriye dönük uyumluluk: Bu fonksiyonu çağırıp events üzerinden filtreleyen eski ekranlar varsa bozulmasın.
+                // (Oluşturulan + Katılınan) birleşik listeyi de dolduruyoruz.
+                _events.value = (createdEvents + participatedPastEvents).distinctBy { it.id }
             } catch (e: Exception) {
-                _error.value = e.message ?: "Etkinlikler yüklenirken bir hata oluştu"
+                Log.e(TAG, "loadEventsForUserReviewScreen error for userId=$userId", e)
+                _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -208,7 +258,9 @@ class EventViewModel : ViewModel() {
                     queryRef = queryRef.whereEqualTo("sportType", sportType)
                 }
                 
-                val snapshot = queryRef.get().await()
+                val snapshot = withNetworkTimeout {
+                    queryRef.get().await()
+                }
                 
                 var eventsList = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(Event::class.java)?.copy(id = doc.id)
@@ -229,7 +281,7 @@ class EventViewModel : ViewModel() {
                 
                 _events.value = eventsList
             } catch (e: Exception) {
-                _error.value = "Etkinlikler aranırken bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -250,70 +302,65 @@ class EventViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                val currentUser = auth.currentUser
+                _error.value = null
                 
-                if (currentUser != null) {
-                    // Get current user's profile information
-                    firestore.collection("users")
+                val currentUser = auth.currentUser
+                if (currentUser == null) {
+                    _error.value = "Kullanıcı girişi yapılmamış"
+                    _isLoading.value = false
+                    return@launch
+                }
+                
+                // Get current user's profile information with timeout
+                val userDoc = withNetworkTimeout {
                     firestore.collection("users")
                         .document(currentUser.uid)
                         .get()
-                        .addOnSuccessListener { userDoc ->
-                            val username = userDoc.getString("username") ?: ""
-                            
-                            // Parse date and time to create endDate
-                            val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-                            val endDate = dateFormat.parse("$date $time") ?: Date()
-                            
-                            val newEvent = Event(
-                                title = title,
-                                description = description,
-                                sportType = sportType,
-                                date = date,
-                                time = time,
-                                location = location,
-                                latitude = latitude,
-                                longitude = longitude,
-                                maxParticipants = maxParticipants,
-                                createdBy = currentUser.uid,
-                                creatorId = currentUser.uid,
-                                creatorUsername = username,
-                                participants = listOf(currentUser.uid),
-                                endDate = endDate
-                            )
-                            
-                            firestore.collection("events")
-                                .add(newEvent)
-                                .addOnSuccessListener { documentRef ->
-                                    // Yeni oluşturulan etkinliği ID'si ile birlikte güncelle
-                                    val eventWithId = newEvent.copy(id = documentRef.id)
-                                    documentRef.set(eventWithId)
-                                        .addOnSuccessListener {
-                                            _isLoading.value = false
-                                            _error.value = null
-                                            _eventCreated.value = true
-                                            loadEvents() // Etkinlikleri yeniden yükle
-                                        }
-                                        .addOnFailureListener { exception ->
-                                            _error.value = exception.message ?: "Etkinlik oluşturulurken bir hata oluştu"
-                                            _isLoading.value = false
-                                        }
-                                }
-                                .addOnFailureListener { exception ->
-                                    _error.value = exception.message ?: "Etkinlik oluşturulurken bir hata oluştu"
-                                    _isLoading.value = false
-                                }
-                        }
-                        .addOnFailureListener { exception ->
-                            _error.value = exception.message ?: "Kullanıcı bilgileri alınırken bir hata oluştu"
-                            _isLoading.value = false
-                        }
-                } else {
-                    _error.value = "Kullanıcı girişi yapılmamış"
-                    _isLoading.value = false
+                        .await()
                 }
+                val username = userDoc.getString("username") ?: ""
+                
+                // Parse date and time to create endDate
+                val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                val endDate = dateFormat.parse("$date $time") ?: Date()
+                
+                val newEvent = Event(
+                    title = title,
+                    description = description,
+                    sportType = sportType,
+                    date = date,
+                    time = time,
+                    location = location,
+                    latitude = latitude,
+                    longitude = longitude,
+                    maxParticipants = maxParticipants,
+                    createdBy = currentUser.uid,
+                    creatorId = currentUser.uid,
+                    creatorUsername = username,
+                    participants = listOf(currentUser.uid),
+                    endDate = endDate
+                )
+                
+                // Add event to Firestore with timeout
+                val documentRef = withNetworkTimeout {
+                    firestore.collection("events")
+                        .add(newEvent)
+                        .await()
+                }
+                
+                // Update event with its ID
+                val eventWithId = newEvent.copy(id = documentRef.id)
+                withNetworkTimeout {
+                    documentRef.set(eventWithId).await()
+                }
+                
+                _error.value = null
+                _eventCreated.value = true
+                loadEvents() // Etkinlikleri yeniden yükle
+                
             } catch (e: Exception) {
-                _error.value = e.message ?: "Etkinlik oluşturulurken bir hata oluştu"
+                _error.value = NetworkUtils.getErrorMessage(e)
+            } finally {
                 _isLoading.value = false
             }
         }
@@ -344,7 +391,9 @@ class EventViewModel : ViewModel() {
                     return@launch
                 }
                 
-                val eventDoc = eventsCollection.document(eventId).get().await()
+                val eventDoc = withNetworkTimeout {
+                    eventsCollection.document(eventId).get().await()
+                }
                 val event = eventDoc.toObject(Event::class.java)
                 
                 if (event == null) {
@@ -377,7 +426,9 @@ class EventViewModel : ViewModel() {
                 updatedPendingRequests.add(currentUser.uid)
                 
                 // Update the event in Firestore
-                eventsCollection.document(eventId).update("pendingRequests", updatedPendingRequests).await()
+                withNetworkTimeout {
+                    eventsCollection.document(eventId).update("pendingRequests", updatedPendingRequests).await()
+                }
                 
                 // Update the local events list
                 val updatedEvent = event.copy(pendingRequests = updatedPendingRequests)
@@ -390,7 +441,7 @@ class EventViewModel : ViewModel() {
                 _error.value = "Katılma isteği başarıyla gönderildi"
                 
             } catch (e: Exception) {
-                _error.value = "İstek gönderilirken bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -403,7 +454,9 @@ class EventViewModel : ViewModel() {
                 _isLoading.value = true
                 _error.value = null
                 
-                val eventDoc = eventsCollection.document(eventId).get().await()
+                val eventDoc = withNetworkTimeout {
+                    eventsCollection.document(eventId).get().await()
+                }
                 val event = eventDoc.toObject(Event::class.java)
                 
                 if (event == null) {
@@ -417,7 +470,9 @@ class EventViewModel : ViewModel() {
                 updatedPendingRequests.remove(userId)
                 
                 // Update the event in Firestore
-                eventsCollection.document(eventId).update("pendingRequests", updatedPendingRequests).await()
+                withNetworkTimeout {
+                    eventsCollection.document(eventId).update("pendingRequests", updatedPendingRequests).await()
+                }
                 
                 // Update the local events list
                 val updatedEvent = event.copy(pendingRequests = updatedPendingRequests)
@@ -430,7 +485,7 @@ class EventViewModel : ViewModel() {
                 _error.value = "Katılma isteği başarıyla iptal edildi"
                 
             } catch (e: Exception) {
-                _error.value = "İstek iptal edilirken bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -443,7 +498,9 @@ class EventViewModel : ViewModel() {
                 _isLoading.value = true
                 _error.value = null
                 
-                val eventDoc = eventsCollection.document(eventId).get().await()
+                val eventDoc = withNetworkTimeout {
+                    eventsCollection.document(eventId).get().await()
+                }
                 val event = eventDoc.toObject(Event::class.java)
                 
                 if (event == null) {
@@ -481,12 +538,14 @@ class EventViewModel : ViewModel() {
                 updatedParticipants.add(userId)
                 
                 // Update the event in Firestore
-                eventsCollection.document(eventId).update(
-                    mapOf(
-                        "pendingRequests" to updatedPendingRequests,
-                        "participants" to updatedParticipants
-                    )
-                ).await()
+                withNetworkTimeout {
+                    eventsCollection.document(eventId).update(
+                        mapOf(
+                            "pendingRequests" to updatedPendingRequests,
+                            "participants" to updatedParticipants
+                        )
+                    ).await()
+                }
                 
                 // Update the local events list
                 val updatedEvent = event.copy(
@@ -502,7 +561,7 @@ class EventViewModel : ViewModel() {
                 _toastMessage.value = "Katılım isteği onaylandı"
                 
             } catch (e: Exception) {
-                _toastMessage.value = "İstek onaylanırken bir hata oluştu: ${e.message}"
+                _toastMessage.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -515,7 +574,9 @@ class EventViewModel : ViewModel() {
                 _isLoading.value = true
                 _error.value = null
                 
-                val eventDoc = eventsCollection.document(eventId).get().await()
+                val eventDoc = withNetworkTimeout {
+                    eventsCollection.document(eventId).get().await()
+                }
                 val event = eventDoc.toObject(Event::class.java)
                 
                 if (event == null) {
@@ -543,9 +604,11 @@ class EventViewModel : ViewModel() {
                 updatedPendingRequests.remove(userId)
                 
                 // Update the event in Firestore
-                eventsCollection.document(eventId).update(
-                    "pendingRequests", updatedPendingRequests
-                ).await()
+                withNetworkTimeout {
+                    eventsCollection.document(eventId).update(
+                        "pendingRequests", updatedPendingRequests
+                    ).await()
+                }
                 
                 // Update the local events list
                 val updatedEvent = event.copy(pendingRequests = updatedPendingRequests)
@@ -558,7 +621,7 @@ class EventViewModel : ViewModel() {
                 _toastMessage.value = "Katılım isteği reddedildi"
                 
             } catch (e: Exception) {
-                _toastMessage.value = "İstek reddedilirken bir hata oluştu: ${e.message}"
+                _toastMessage.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -590,7 +653,9 @@ class EventViewModel : ViewModel() {
                 }
                 
                 // Get the existing event
-                val eventDoc = eventsCollection.document(eventId).get().await()
+                val eventDoc = withNetworkTimeout {
+                    eventsCollection.document(eventId).get().await()
+                }
                 val existingEvent = eventDoc.toObject(Event::class.java)
                 
                 if (existingEvent == null) {
@@ -625,7 +690,9 @@ class EventViewModel : ViewModel() {
                 )
                 
                 // Update the event in Firestore
-                eventsCollection.document(eventId).set(updatedEvent).await()
+                withNetworkTimeout {
+                    eventsCollection.document(eventId).set(updatedEvent).await()
+                }
                 
                 _toastMessage.value = "Etkinlik başarıyla güncellendi"
                 
@@ -633,7 +700,7 @@ class EventViewModel : ViewModel() {
                 loadEvents()
                 
             } catch (e: Exception) {
-                _error.value = "Etkinlik güncellenirken bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -650,7 +717,9 @@ class EventViewModel : ViewModel() {
                 val currentUser = auth.currentUser
 
                 //gösterilen etkinlği getir
-                val eventDoc = eventsCollection.document(eventId).get().await()
+                val eventDoc = withNetworkTimeout {
+                    eventsCollection.document(eventId).get().await()
+                }
                 val existingEvent = eventDoc.toObject(Event::class.java)
 
                 if (existingEvent?.createdBy != currentUser?.uid) {
@@ -659,14 +728,16 @@ class EventViewModel : ViewModel() {
                     return@launch
                 }
 
-
-                eventsCollection.document(eventId).delete().await()
+                withNetworkTimeout {
+                    eventsCollection.document(eventId).delete().await()
+                }
                 Log.d("EventViewModel", "Etkinlik silindi")
                 _toastMessage.value = "Etkinlik başarıyla silindi"
 
-
             } catch (e: Exception) {
-                _error.value = "Etkinlik silinirken bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
+            } finally {
+                _isLoading.value = false
             }
         }
     }

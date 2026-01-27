@@ -9,10 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.net.UnknownHostException
-import java.net.SocketTimeoutException
-import java.io.IOException
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
+import com.emreyildirim.matchhuntv1.utils.NetworkUtils
 import com.emreyildirim.matchhuntv1.utils.TokenUpdate
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
@@ -38,11 +36,7 @@ class AuthViewModel : ViewModel() {
     val isProfileComplete: StateFlow<Boolean> = _isProfileComplete.asStateFlow()
     
     private fun handleError(e: Exception): String {
-        return when (e) {
-            is UnknownHostException, is SocketTimeoutException, is IOException -> 
-                "İnternet bağlantınızı kontrol edin ve tekrar deneyin"
-            else -> e.message ?: "Bir hata oluştu, lütfen tekrar deneyin"
-        }
+        return NetworkUtils.getErrorMessage(e)
     }
     
     fun signIn(email: String, password: String) {

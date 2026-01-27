@@ -78,6 +78,7 @@ dependencies {
     implementation("com.google.maps.android:maps-compose:4.3.0")
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
     implementation ("com.google.accompanist:accompanist-swiperefresh:0.32.0")
+    implementation(libs.androidx.compose.ui.text)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

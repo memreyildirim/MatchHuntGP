@@ -1,5 +1,7 @@
 package com.emreyildirim.matchhuntv1.ui.viewmodel
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,6 +9,8 @@ import com.emreyildirim.matchhuntv1.data.model.Message
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.ui.screens.Conversation
 import com.emreyildirim.matchhuntv1.utils.ChatUtils
+import com.emreyildirim.matchhuntv1.utils.NetworkUtils
+import com.emreyildirim.matchhuntv1.utils.withNetworkTimeout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.DocumentSnapshot
@@ -23,9 +27,13 @@ import kotlinx.coroutines.tasks.await
 import java.util.Date
 import java.util.UUID
 
-class MessageViewModel : ViewModel() {
+class MessageViewModel(private val context: Context? = null) : ViewModel() {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    
+    // Gizlenen konuşmalar için SharedPreferences
+    private val prefsName = "hidden_conversations"
+    private val hiddenConversationsKey = "hidden_user_ids"
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages
@@ -62,6 +70,56 @@ class MessageViewModel : ViewModel() {
     private var currentTargetUserId: String? = null
 
     private val TAG = "MessageViewModel"
+    
+    // Gizlenen konuşmaları yükle
+    private fun getHiddenConversations(): Set<String> {
+        return context?.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+            ?.getStringSet(hiddenConversationsKey, emptySet())
+            ?.toSet() ?: emptySet()
+    }
+    
+    // Konuşmayı gizle
+    fun hideConversation(userId: String) {
+        viewModelScope.launch {
+            try {
+                val hidden = getHiddenConversations().toMutableSet()
+                hidden.add(userId)
+                context?.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+                    ?.edit()
+                    ?.putStringSet(hiddenConversationsKey, hidden)
+                    ?.apply()
+                
+                // UI'ı güncelle - gizlenen konuşmayı listeden çıkar
+                val currentConversations = _conversations.value.toMutableList()
+                _conversations.value = currentConversations.filter { it.userId != userId }
+                
+                Log.d(TAG, "Conversation hidden: $userId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error hiding conversation", e)
+            }
+        }
+    }
+    
+    // Konuşmayı tekrar göster (gizlemeyi kaldır)
+    fun unhideConversation(userId: String) {
+        viewModelScope.launch {
+            try {
+                val hidden = getHiddenConversations().toMutableSet()
+                hidden.remove(userId)
+                context?.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+                    ?.edit()
+                    ?.putStringSet(hiddenConversationsKey, hidden)
+                    ?.apply()
+                
+                // Konuşmaları yeniden yükle (gizlenen artık görünecek)
+                loadConversations()
+                
+                Log.d(TAG, "Conversation unhidden: $userId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error unhiding conversation", e)
+            }
+        }
+    }
 
     fun sendMessage(text: String, targetUserId: String) {
         viewModelScope.launch {
@@ -86,15 +144,17 @@ class MessageViewModel : ViewModel() {
                 }
 
                 // Mesajı Firestore'a kaydet
-                firestore.collection("messages")
-                    .document(message.id)
-                    .set(message)
-                    .await()
+                withNetworkTimeout {
+                    firestore.collection("messages")
+                        .document(message.id)
+                        .set(message)
+                        .await()
+                }
 
                 // Konuşma listesini güncelle
                 updateConversationList(message)
             } catch (e: Exception) {
-                _error.value = "Mesaj gönderilirken bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
                 e.printStackTrace()
                 
                 // Hata durumunda optimistic update'i geri al (isteğe bağlı)
@@ -157,8 +217,8 @@ class MessageViewModel : ViewModel() {
                     .limit(pageSize.toLong())
 
                 // Her iki query'yi paralel olarak çalıştır
-                val sentSnapshot = sentMessagesQuery.get().await()
-                val receivedSnapshot = receivedMessagesQuery.get().await()
+                val sentSnapshot = withNetworkTimeout { sentMessagesQuery.get().await() }
+                val receivedSnapshot = withNetworkTimeout { receivedMessagesQuery.get().await() }
                 
                 Log.d(
                     TAG,
@@ -195,7 +255,7 @@ class MessageViewModel : ViewModel() {
                     "loadInitialMessages() lastVisibleMessageSnapshot=${lastVisibleMessageSnapshot?.id}, hasMoreMessages=$hasMoreMessages"
                 )
             } catch (e: Exception) {
-                _error.value = "Mesajlar yüklenirken bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
                 e.printStackTrace()
                 Log.e(TAG, "loadInitialMessages() error", e)
             } finally {
@@ -257,8 +317,8 @@ class MessageViewModel : ViewModel() {
                     .limit(pageSize.toLong())
 
                 // Her iki query'yi paralel olarak çalıştır
-                val sentSnapshot = sentMessagesQuery.get().await()
-                val receivedSnapshot = receivedMessagesQuery.get().await()
+                val sentSnapshot = withNetworkTimeout { sentMessagesQuery.get().await() }
+                val receivedSnapshot = withNetworkTimeout { receivedMessagesQuery.get().await() }
                 
                 Log.d(
                     TAG,
@@ -304,7 +364,7 @@ class MessageViewModel : ViewModel() {
                     "loadMoreMessages() updated lastVisibleMessageSnapshot=${lastVisibleMessageSnapshot?.id}, hasMoreMessages=$hasMoreMessages"
                 )
             } catch (e: Exception) {
-                _error.value = "Daha fazla mesaj yüklenirken bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
                 e.printStackTrace()
                 Log.e(TAG, "loadMoreMessages() error", e)
             } finally {
@@ -362,21 +422,30 @@ class MessageViewModel : ViewModel() {
                 _isLoading.value = true
                 _error.value = null
                 val currentUserId = auth.currentUser?.uid ?: return@launch
+                
+                // Gizlenen konuşmaları yükle
+                val hiddenConversations = getHiddenConversations()
+                
+                Log.d(TAG, "Loading conversations, hidden count: ${hiddenConversations.size}")
 
                 // Kullanıcının tüm mesajlarını getir
-                val messagesSnapshot = firestore.collection("messages")
-                    .whereEqualTo("senderId", currentUserId)
-                    .get()
-                    .await()
+                val messagesSnapshot = withNetworkTimeout {
+                    firestore.collection("messages")
+                        .whereEqualTo("senderId", currentUserId)
+                        .get()
+                        .await()
+                }
 
                 val sentMessages = messagesSnapshot.documents.mapNotNull { doc ->
                     Message.fromFirestore(doc)
                 }
 
-                val receivedMessagesSnapshot = firestore.collection("messages")
-                    .whereEqualTo("receiverId", currentUserId)
-                    .get()
-                    .await()
+                val receivedMessagesSnapshot = withNetworkTimeout {
+                    firestore.collection("messages")
+                        .whereEqualTo("receiverId", currentUserId)
+                        .get()
+                        .await()
+                }
 
                 val receivedMessages = receivedMessagesSnapshot.documents.mapNotNull { doc ->
                     Message.fromFirestore(doc)
@@ -391,8 +460,13 @@ class MessageViewModel : ViewModel() {
                 for (message in allMessages) {
                     val otherUserId = if (message.senderId == currentUserId) message.receiverId else message.senderId
                     
+                    // GİZLENEN KONUŞMALARI ATLA - Profil sorgusu yapma, işleme alma
+                    if (otherUserId in hiddenConversations) {
+                        continue // Bu kullanıcıyla ilgili hiçbir şey yapma
+                    }
+                    
                     if (!conversationsMap.containsKey(otherUserId)) {
-                        // Kullanıcı profilini getir
+                        // Sadece gizlenmemiş kullanıcılar için profil sorgusu yap
                         val userDoc = firestore.collection("users")
                             .document(otherUserId)
                             .get()
@@ -417,6 +491,7 @@ class MessageViewModel : ViewModel() {
                 }
 
                 // Her konuşma için okunmamış mesaj sayısını hesapla
+                // (Gizlenenler zaten conversationsMap'te yok, bu yüzden otomatik filtrelenmiş)
                 val conversationsWithUnread = conversationsMap.values.map { conversation ->
                     val userMessages = allMessages.filter { message ->
                         val otherUserId = if (message.senderId == currentUserId) message.receiverId else message.senderId
@@ -428,8 +503,11 @@ class MessageViewModel : ViewModel() {
 
                 // Konuşmaları son mesaj zamanına göre sırala
                 _conversations.value = conversationsWithUnread.sortedByDescending { it.lastMessage?.timestamp }
+                
+                Log.d(TAG, "Loaded ${_conversations.value.size} visible conversations (${hiddenConversations.size} hidden)")
+                
             } catch (e: Exception) {
-                _error.value = "Konuşmalar yüklenirken bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
@@ -704,6 +782,7 @@ class MessageViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val currentUserId = auth.currentUser?.uid ?: return@launch
+                val hiddenConversations = getHiddenConversations()
                 val currentConversations = _conversations.value.toMutableList()
                 val conversationsMap = currentConversations.associateBy { it.userId }.toMutableMap()
 
@@ -712,6 +791,20 @@ class MessageViewModel : ViewModel() {
 
                 for (message in sortedNewMessages) {
                     val otherUserId = if (message.senderId == currentUserId) message.receiverId else message.senderId
+                    
+                    // YENİ MESAJ GELEN KONUŞMALAR İÇİN GİZLEMEYİ KALDIR
+                    if (otherUserId in hiddenConversations) {
+                        // Yeni mesaj geldi, gizlemeyi kaldır
+                        unhideConversation(otherUserId)
+                        // hiddenConversations'ı güncelle
+                        val updatedHidden = getHiddenConversations()
+                        // Artık gizlenmemiş, devam et
+                    }
+                    
+                    // Gizlenen konuşmalar için profil sorgusu yapma
+                    if (otherUserId in getHiddenConversations()) {
+                        continue
+                    }
                     
                     if (!conversationsMap.containsKey(otherUserId)) {
                         // Yeni konuşma - kullanıcı profilini getir
@@ -783,8 +876,14 @@ class MessageViewModel : ViewModel() {
                     }
                 }
 
+                // Gizlenen konuşmaları filtrele (güncel listeyi al)
+                val updatedHiddenConversations = getHiddenConversations()
+                val visibleConversations = conversationsMap.values.filter { 
+                    it.userId !in updatedHiddenConversations 
+                }
+
                 // Konuşmaları son mesaj zamanına göre sırala
-                _conversations.value = conversationsMap.values.sortedByDescending { it.lastMessage?.timestamp }
+                _conversations.value = visibleConversations.sortedByDescending { it.lastMessage?.timestamp }
                 Log.d(TAG, "✅ Conversations updated: ${_conversations.value.size} conversations")
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating conversations", e)

@@ -29,19 +29,30 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
     val userRepository = UserRepository()
     val scope = rememberCoroutineScope()
     var isProfileComplete by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     val authViewModel: AuthViewModel = viewModel()
-    // Mesajlaşma ile ilgili tüm ekranlar için paylaşılan ViewModel
-    val messageViewModel: MessageViewModel = viewModel()
+    // Mesajlaşma ile ilgili tüm ekranlar için paylaşılan ViewModel (Context ile)
+    val messageViewModel: MessageViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return MessageViewModel(context.applicationContext) as T
+            }
+        }
+    )
 
     // Profil tamamlama kontrolü ve yönlendirme
     suspend fun checkAndNavigateToNextScreen() {

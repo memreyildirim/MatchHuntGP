@@ -1,10 +1,7 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
-import android.net.Uri
 import android.util.Log
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -42,7 +39,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,6 +55,7 @@ import com.emreyildirim.matchhuntv1.data.repository.ReviewRepository
 import com.emreyildirim.matchhuntv1.data.repository.PostRepository
 import com.emreyildirim.matchhuntv1.ui.components.ReviewCard
 import com.emreyildirim.matchhuntv1.ui.viewmodel.AuthViewModel
+import com.emreyildirim.matchhuntv1.ui.viewmodel.PostViewModel
 import com.emreyildirim.matchhuntv1.utils.RatingCard.RatingStatItem
 import com.emreyildirim.matchhuntv1.utils.Sports
 import com.google.firebase.auth.FirebaseAuth
@@ -347,7 +344,7 @@ fun ProfileScreen(navController: NavController) {
             onDismissRequest = { showReviewsSheet = false },
             sheetState = rememberModalBottomSheetState(),
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                 Text("Reviews", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black))
@@ -733,10 +730,10 @@ fun PostDetailCard(
     post: Post,
     postRepository: PostRepository,
     currentUserId: String,
+    postViewModel: PostViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onPostDeleted: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val userRepository = remember { UserRepository() }
     val auth = FirebaseAuth.getInstance()
     var profileImageUrl by remember { mutableStateOf("") }
@@ -748,6 +745,28 @@ fun PostDetailCard(
     var currentUserName by remember { mutableStateOf("") }
     var showMenu by remember { mutableStateOf(false) }
     val sportColor = Sports.getSportInfo(post.sportType)?.color ?: MaterialTheme.colorScheme.primary
+
+    // ViewModel state'lerini observe et
+    val isDeleting by postViewModel.isDeleting.collectAsState()
+    val deleteError by postViewModel.deleteError.collectAsState()
+    val deleteSuccess by postViewModel.deleteSuccess.collectAsState()
+
+    // Toast mesajlarını göster
+    LaunchedEffect(deleteSuccess) {
+        deleteSuccess?.let {
+            Toast.makeText(context, "Post silindi", Toast.LENGTH_SHORT).show()
+            Log.d("PostDetailCard", "Post deleted successfully")
+            postViewModel.clearDeleteSuccess()
+        }
+    }
+
+    LaunchedEffect(deleteError) {
+        deleteError?.let {
+            Toast.makeText(context, "Hata: $it", Toast.LENGTH_SHORT).show()
+            Log.e("PostDetailCard", "Error deleting post: $it")
+            postViewModel.clearDeleteError()
+        }
+    }
 
     LaunchedEffect(post.userId) {
         val userData = userRepository.getUserProfileData(post.userId)
@@ -822,25 +841,29 @@ fun PostDetailCard(
                         containerColor = MaterialTheme.colorScheme.surface,
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Postu Sil") },
-                            onClick = {
-                                showMenu = false
-                                scope.launch {
-                                    // Optimistic update - önce UI'dan kaldır
-                                    onPostDeleted(post.id)
-
-                                    // Sonra silme işlemini yap
-                                    postRepository.deletePost(postId = post.id, userId = currentUserId)
-                                        .onSuccess {
-                                            Toast.makeText(context, "Post silindi", Toast.LENGTH_SHORT).show()
-                                            Log.d("PostDetailCard", "Post deleted successfully")
-                                        }
-                                        .onFailure { error ->
-                                            Toast.makeText(context, "Hata: ${error.message}", Toast.LENGTH_SHORT).show()
-                                            Log.e("PostDetailCard", "Error deleting post", error)
-                                        }
+                            text = { 
+                                if (isDeleting) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Siliniyor...")
+                                    }
+                                } else {
+                                    Text("Postu Sil")
                                 }
-                            }
+                            },
+                            onClick = {
+                                if (!isDeleting) {
+                                    showMenu = false
+                                    postViewModel.deletePost(post.id) { deletedPostId ->
+                                        onPostDeleted(deletedPostId)
+                                    }
+                                }
+                            },
+                            enabled = !isDeleting
                         )
                         DropdownMenuItem(
                             text = { Text("Paylaş") },
@@ -881,11 +904,24 @@ fun PostDetailCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = {
-                    scope.launch {
-                        isLiked = !isLiked
-                        likeCount = if (isLiked) likeCount + 1 else likeCount - 1
-                        postRepository.likePost(post.id, currentUserId)
-                    }
+                    // Optimistic update
+                    val wasLiked = isLiked
+                    val originalLikeCount = likeCount
+                    isLiked = !isLiked
+                    likeCount = if (isLiked) likeCount + 1 else likeCount - 1
+                    
+                    // ViewModel ile like işlemi
+                    postViewModel.likePost(
+                        postId = post.id,
+                        onSuccess = {
+                            // Başarılı olduğunda optimistic update zaten yapıldı
+                        },
+                        onError = { errorMsg ->
+                            // Hata durumunda optimistic update'i geri al
+                            isLiked = wasLiked
+                            likeCount = originalLikeCount
+                        }
+                    )
                 }) {
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
@@ -1001,19 +1037,23 @@ fun PostDetailCard(
                         IconButton(
                             onClick = {
                                 if (commentText.isNotBlank()) {
-                                    scope.launch {
-                                        val newComment = Comment(
-                                            id = UUID.randomUUID().toString(),
-                                            postId = post.id,
-                                            userId = currentUserId,
-                                            userName = currentUserName,
-                                            content = commentText,
-                                            createdAt = Date()
-                                        )
-                                        postRepository.addComment(post.id, newComment)
-                                        comments = comments + newComment
-                                        commentText = ""
-                                    }
+                                    val commentTextToAdd = commentText
+                                    // Önce text'i temizle (optimistic update için)
+                                    commentText = ""
+                                    
+                                    // ViewModel ile yorum ekleme
+                                    postViewModel.addComment(
+                                        postId = post.id,
+                                        content = commentTextToAdd,
+                                        onSuccess = { comment ->
+                                            // Başarılı olduğunda optimistic update
+                                            comments = comments + comment
+                                        },
+                                        onError = { errorMsg ->
+                                            // Hata durumunda text'i geri yükle
+                                            commentText = commentTextToAdd
+                                        }
+                                    )
                                 }
                             },
                             enabled = commentText.isNotBlank()
@@ -1021,7 +1061,7 @@ fun PostDetailCard(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Send",
-                                tint = if (commentText.isNotBlank()) sportColor else Color.LightGray,
+                                tint = if (commentText.isNotBlank()) MaterialTheme.colorScheme.primary else Color.LightGray,
                                 modifier = Modifier.size(20.dp)
                             )
                         }

@@ -195,8 +195,6 @@ fun SocialFeedScreen(
                     items(posts, key = { it.id }) { post ->
                         PostCard(
                             post = post,
-                            obsidian = MaterialTheme.colorScheme.primary,
-                            brandVolt = MaterialTheme.colorScheme.onPrimary,
                             onLikeClick = { viewModel.likePost(post.id) },
                             onCommentSubmit = { viewModel.addComment(post.id, it) },
                             onNavigateToProfile = { viewModel.navigateToProfile(it) }
@@ -211,8 +209,6 @@ fun SocialFeedScreen(
 @Composable
 fun PostCard(
     post: Post,
-    obsidian: Color,
-    brandVolt: Color,
     onLikeClick: (String) -> Unit,
     onCommentSubmit: (String) -> Unit,
     onNavigateToProfile: (String) -> Unit
@@ -237,7 +233,7 @@ fun PostCard(
     var lastTapTime by remember { mutableLongStateOf(0L) }
 
     val sportColor = remember(post.sportType) {
-        Sports.getSportInfo(post.sportType)?.color ?: brandVolt
+        Sports.getSportInfo(post.sportType)?.color ?: Color.Black
     }
 
     LaunchedEffect(post.userId) {
@@ -266,7 +262,7 @@ fun PostCard(
                     contentScale = ContentScale.Crop
                 )
                 Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                    Text(post.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = obsidian)
+                    Text(post.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
                     Text(
                         SimpleDateFormat("d MMM, HH:mm", Locale.getDefault()).format(post.createdAt),
                         fontSize = 11.sp, color = Color.Gray
@@ -275,7 +271,7 @@ fun PostCard(
 
                 // Sport Type Alanı: Siyah zemin üzerine sporun kendi rengi
                 Surface(
-                    color = obsidian,
+                    color = MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
@@ -322,7 +318,7 @@ fun PostCard(
                 Icon(
                     imageVector = Icons.Filled.Favorite,
                     contentDescription = null,
-                    tint = brandVolt.copy(alpha = 0.9f),
+                    tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
                     modifier = Modifier.align(Alignment.Center).size(100.dp).scale(heartScale)
                 )
             }
@@ -339,18 +335,18 @@ fun PostCard(
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = "Like",
-                        tint = if (isLiked) Color.Red else obsidian,
+                        tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(26.dp)
                     )
                 }
-                Text("${likeCount}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = obsidian)
+                Text("${likeCount}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
 
                 Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(onClick = { showComments = !showComments }) {
-                    Icon(Icons.Outlined.ChatBubbleOutline, null, tint = obsidian, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Outlined.ChatBubbleOutline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                 }
-                Text("${post.comments.size}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = obsidian)
+                Text("${post.comments.size}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
             }
 
             if (post.description.isNotBlank()) {
@@ -362,7 +358,7 @@ fun PostCard(
                         lineHeight = 22.sp,
                         letterSpacing = 0.2.sp
                     ),
-                    color = obsidian
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -397,7 +393,7 @@ fun PostCard(
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp,
-                                            color = obsidian
+                                            color = MaterialTheme.colorScheme.primary
                                         ),
                                         modifier = Modifier.clickable { onNavigateToProfile(comment.userId) }
                                     )
@@ -408,7 +404,7 @@ fun PostCard(
                                 }
                                 Text(
                                     text = comment.content,
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, color = obsidian),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, color = MaterialTheme.colorScheme.primary),
                                     modifier = Modifier.padding(start = 2.dp)
                                 )
                             }
@@ -448,7 +444,7 @@ fun PostCard(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Send",
-                                tint = if (commentText.isNotBlank()) obsidian else Color.LightGray,
+                                tint = if (commentText.isNotBlank()) MaterialTheme.colorScheme.primary else Color.LightGray,
                                 modifier = Modifier.size(20.dp)
                             )
                         }

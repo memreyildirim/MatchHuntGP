@@ -23,6 +23,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -140,7 +145,10 @@ fun MessageListScreen(
                             items(filteredConversations) { conversation ->
                                 ModernConversationItem(
                                     conversation = conversation,
-                                    onClick = { onNavigateToChat(conversation.userId) }
+                                    onClick = { onNavigateToChat(conversation.userId) },
+                                    onDelete = { userId ->
+                                        viewModel.hideConversation(userId)
+                                    }
                                 )
                             }
                         }
@@ -154,12 +162,25 @@ fun MessageListScreen(
 @Composable
 fun ModernConversationItem(
     conversation: Conversation,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: (String) -> Unit = {}
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     Surface(
-        onClick = onClick,
         color = Color.Transparent,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+                        onClick()
+                    },
+                    onLongPress = {
+                        showDeleteDialog = true
+                    }
+                )
+            }
     ) {
         Row(
             modifier = Modifier
@@ -238,6 +259,30 @@ fun ModernConversationItem(
                 }
             }
         }
+    }
+    
+    // Silme onay dialogu
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Konuşmayı Gizle") },
+            text = { Text("Bu konuşmayı mesajlaşma listenizden kaldırmak istediğinizden emin misiniz? Yeni mesaj geldiğinde tekrar görünecektir.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete(conversation.userId)
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Kaldır", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("İptal")
+                }
+            }
+        )
     }
 }
 

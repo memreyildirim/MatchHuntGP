@@ -1,6 +1,7 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.Manifest
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.rememberScrollState
@@ -15,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -222,8 +224,9 @@ fun CreateEventScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .verticalScroll(rememberScrollState())
+            .background(MaterialTheme.colorScheme.secondaryContainer),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Column(
             modifier = Modifier
@@ -245,8 +248,11 @@ fun CreateEventScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    focusedBorderColor = Obsidian,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedLabelColor = Obsidian,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
                 )
             )
             
@@ -283,11 +289,15 @@ fun CreateEventScreen(
                         .menuAnchor(),
                     shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
                     )
                 )
                 ExposedDropdownMenu(
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface),
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
@@ -326,8 +336,11 @@ fun CreateEventScreen(
                 minLines = 3,
                 shape = MaterialTheme.shapes.medium,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    focusedBorderColor = Obsidian,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedLabelColor = Obsidian,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
                 )
             )
             
@@ -354,8 +367,11 @@ fun CreateEventScreen(
                     },
                     shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
                     )
                 )
                 
@@ -377,8 +393,11 @@ fun CreateEventScreen(
                     },
                     shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
                     )
                 )
             }
@@ -401,8 +420,11 @@ fun CreateEventScreen(
                 },
                 shape = MaterialTheme.shapes.medium,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    focusedBorderColor = Obsidian,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedLabelColor = Obsidian,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
                 )
             )
             
@@ -419,8 +441,11 @@ fun CreateEventScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = MaterialTheme.shapes.medium,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    focusedBorderColor = Obsidian,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedLabelColor = Obsidian,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
                 )
             )
             

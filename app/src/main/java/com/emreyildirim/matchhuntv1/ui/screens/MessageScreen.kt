@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +69,9 @@ fun MessageScreen(
 
     LaunchedEffect(targetUserId) {
         if (targetUserId != null) {
+            // Konuşmayı gizlenen listeden çıkar (kullanıcı chat'e girdi)
+            viewModel.unhideConversation(targetUserId)
+            
             firestore.collection("users").document(targetUserId).get()
                 .addOnSuccessListener { targetUserProfile = it.toObject(UserProfile::class.java) }
         }

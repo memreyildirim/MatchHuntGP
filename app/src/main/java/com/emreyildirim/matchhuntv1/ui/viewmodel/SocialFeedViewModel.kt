@@ -6,7 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.emreyildirim.matchhuntv1.data.repository.PostRepository
 import com.emreyildirim.matchhuntv1.data.model.Post
 import com.emreyildirim.matchhuntv1.data.model.Comment
-import com.emreyildirim.matchhuntv1.data.repository.UserRepository
+import com.emreyildirim.matchhuntv1.utils.NetworkUtils
+import com.emreyildirim.matchhuntv1.utils.withNetworkTimeout
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,9 +17,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import java.util.*
 
-class SocialFeedViewModel : ViewModel() {
+class SocialFeedViewModel(
+    private val postViewModel: PostViewModel = PostViewModel()
+) : ViewModel() {
     private val repository = PostRepository()
-    private val userRepository = UserRepository()
     private val auth = FirebaseAuth.getInstance()
 
     private val _posts = MutableStateFlow<List<Post>>(emptyList())
@@ -66,17 +68,19 @@ class SocialFeedViewModel : ViewModel() {
             _isLoading.value = true
             _error.value = null
             try {
-                repository.getPostsPaginated()
+                withNetworkTimeout {
+                    repository.getPostsPaginated()
+                }
                     .onSuccess { (posts, hasMore) ->
                         _posts.value = posts
                         _hasMorePosts.value = hasMore
                         isInitialLoadDone = true
                     }
                     .onFailure { e ->
-                        _error.value = "Postlar yüklenirken bir hata oluştu: ${e.message}"
+                        _error.value = NetworkUtils.getErrorMessage(e)
                     }
             } catch (e: Exception) {
-                _error.value = "Beklenmeyen bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false
             }
@@ -97,17 +101,19 @@ class SocialFeedViewModel : ViewModel() {
                 // Son postu al
                 val lastPost = _posts.value.lastOrNull()
                 
-                repository.getPostsPaginated(lastPost)
+                withNetworkTimeout {
+                    repository.getPostsPaginated(lastPost)
+                }
                     .onSuccess { (newPosts, hasMore) ->
                         // Yeni postları mevcut listeye ekle
                         _posts.value = _posts.value + newPosts
                         _hasMorePosts.value = hasMore
                     }
                     .onFailure { e ->
-                        _error.value = "Daha fazla post yüklenirken bir hata oluştu: ${e.message}"
+                        _error.value = NetworkUtils.getErrorMessage(e)
                     }
             } catch (e: Exception) {
-                _error.value = "Beklenmeyen bir hata oluştu: ${e.message}"
+                _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoadingMore.value = false
             }
@@ -116,65 +122,69 @@ class SocialFeedViewModel : ViewModel() {
 
 
     fun likePost(postId: String) {
-        viewModelScope.launch {
-            val currentUser = auth.currentUser
-            if (currentUser == null) {
-                _error.value = "Kullanıcı oturumu bulunamadı. Lütfen tekrar giriş yapın."
-                return@launch
-            }
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            _error.value = "Kullanıcı oturumu bulunamadı. Lütfen tekrar giriş yapın."
+            return
+        }
 
-            repository.likePost(postId, currentUser.uid)
-                .onSuccess {
-                    // Beğeni işlemi başarılı olduğunda, ilgili postu güncelle
-                    val updatedPosts = _posts.value.map { post ->
+        // Optimistic update - önce UI'ı güncelle
+        val originalPost = _posts.value.find { it.id == postId }
+        val updatedPosts = _posts.value.map { post ->
+            if (post.id == postId) {
+                val likedBy = post.likedBy.toMutableList()
+                val wasLiked = currentUser.uid in likedBy
+                if (wasLiked) {
+                    likedBy.remove(currentUser.uid)
+                } else {
+                    likedBy.add(currentUser.uid)
+                }
+                post.copy(likedBy = likedBy, likes = likedBy.size)
+            } else {
+                post
+            }
+        }
+        _posts.value = updatedPosts
+
+        // PostViewModel ile işlemi yap
+        postViewModel.likePost(
+            postId = postId,
+            onSuccess = {
+                // Başarılı olduğunda optimistic update zaten yapıldı
+            },
+            onError = { errorMsg ->
+                // Hata durumunda optimistic update'i geri al
+                originalPost?.let {
+                    _posts.value = _posts.value.map { post ->
                         if (post.id == postId) {
-                            val likedBy = post.likedBy.toMutableList()
-                            if (currentUser.uid in likedBy) {
-                                likedBy.remove(currentUser.uid)
-                            } else {
-                                likedBy.add(currentUser.uid)
-                            }
-                            post.copy(likedBy = likedBy, likes = likedBy.size)
+                            it // Orijinal post'u geri yükle
                         } else {
                             post
                         }
                     }
-                    _posts.value = updatedPosts
                 }
-                .onFailure { e ->
-                    _error.value = "Beğeni işlemi sırasında bir hata oluştu: ${e.message}"
-                }
-        }
+                _error.value = errorMsg
+            }
+        )
     }
     
     fun addComment(postId: String, content: String) {
-        viewModelScope.launch {
-            try {
-                val currentUserId = auth.currentUser?.uid ?: return@launch
-                val currentUser = userRepository.getUserProfileData(currentUserId)
-                val userName = currentUser?.get("username") as? String ?: "Unknown User"
-
-                val comment = Comment(
-                    id = UUID.randomUUID().toString(),
-                    postId = postId,
-                    userId = currentUserId,
-                    userName = userName,
-                    content = content,
-                    createdAt = Date()
-                )
-
-                repository.addComment(postId, comment)
-
-                // Update local state
+        // PostViewModel ile yorum ekle
+        postViewModel.addComment(
+            postId = postId,
+            content = content,
+            onSuccess = { comment ->
+                // Başarılı olduğunda local state'i güncelle
                 _posts.value = _posts.value.map { post ->
                     if (post.id == postId) {
                         post.copy(comments = post.comments + comment)
                     } else post
                 }
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to add comment"
+            },
+            onError = { errorMsg ->
+                _error.value = errorMsg
             }
-        }
+        )
     }
     
     override fun onCleared() {

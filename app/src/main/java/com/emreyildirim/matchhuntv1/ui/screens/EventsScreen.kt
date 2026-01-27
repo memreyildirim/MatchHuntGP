@@ -1,5 +1,6 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -10,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)

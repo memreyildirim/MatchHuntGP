@@ -5,15 +5,14 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,13 +22,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
@@ -37,71 +39,57 @@ import coil.request.ImageRequest
 import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.utils.Cities
 import com.emreyildirim.matchhuntv1.utils.Sports
+import com.emreyildirim.matchhuntv1.utils.NetworkUtils
+import com.emreyildirim.matchhuntv1.utils.withNetworkTimeout
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
 import com.emreyildirim.matchhuntv1.ui.viewmodel.AuthViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateProfileScreen(navController: NavController) {
     val authViewModel: AuthViewModel = viewModel()
     val auth = FirebaseAuth.getInstance()
-    val userRepository = UserRepository()
-    val storage = FirebaseStorage.getInstance()
+    val userRepository = remember { UserRepository() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    
+
+    // Form State
     var username by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
     var selectedCity by remember { mutableStateOf("") }
     var about by remember { mutableStateOf("") }
     var selectedSports by remember { mutableStateOf(setOf<String>()) }
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // UI State
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isCityDropdownExpanded by remember { mutableStateOf(false) }
-    
-    // Mevcut profil bilgilerini al
-    val profileData = navController.currentBackStackEntry?.savedStateHandle?.get<Map<String, String>>("profileData")
-    
-    LaunchedEffect(profileData) {
-        profileData?.let { data ->
-            username = data["username"] ?: ""
-            age = data["age"] ?: ""
-            selectedCity = data["city"] ?: ""
-            about = data["about"] ?: ""
-            selectedSports = data["sports"]?.split(",")?.map { it.trim() }?.toSet() ?: setOf()
-            data["photoUrl"]?.let { url ->
-                if (url.isNotEmpty()) {
-                    profileImageUri = Uri.parse(url)
-                }
-            }
-        }
-    }
-    
+
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        profileImageUri = uri
+        if (uri != null) profileImageUri = uri
     }
-    
+
     Scaffold(
+        containerColor = SoftGray,
         topBar = {
-            TopAppBar(
-                title = { 
+            CenterAlignedTopAppBar(
+                title = {
                     Text(
-                        text = if (profileData != null) "Edit Profile" else "Create Profil",
-                        style = MaterialTheme.typography.titleLarge
-                    ) 
+                        text = "PROFİL OLUŞTUR",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 2.sp,
+                            color = Obsidian
+                        )
+                    )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = SoftGray)
             )
         }
     ) { innerPadding ->
@@ -110,231 +98,293 @@ fun CreateProfileScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profil Fotoğrafı
+            // 1. Profil Fotoğrafı Bölümü
             Box(
                 modifier = Modifier
-                    .size(120.dp)
-                    .padding(vertical = 24.dp)
+                    .padding(vertical = 32.dp)
+                    .size(130.dp)
             ) {
-                if (profileImageUri != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .border(3.dp, BrandVolt, CircleShape)
+                        .padding(5.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                ) {
                     Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(context)
-                                .data(profileImageUri)
-                                .crossfade(true)
-                                .build()
-                        ),
-                        contentDescription = "Profile Image",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_profile_placeholder),
-                        contentDescription = "Profile Image",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        painter = if (profileImageUri != null) {
+                            rememberAsyncImagePainter(
+                                ImageRequest.Builder(context)
+                                    .data(profileImageUri)
+                                    .crossfade(true)
+                                    .build()
+                            )
+                        } else {
+                            painterResource(id = R.drawable.ic_profile_placeholder)
+                        },
+                        contentDescription = "Profil Fotoğrafı",
+                        modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
                 }
-                
-                IconButton(
-                    onClick = { imagePicker.launch("image/*") },
+
+                // Kamera İkonu (Action)
+                Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .background(
-                            MaterialTheme.colorScheme.primary,
-                            CircleShape
-                        )
-                        .padding(4.dp)
+                        .size(40.dp)
+                        .background(Obsidian, CircleShape)
+                        .border(2.dp, BrandVolt, CircleShape)
+                        .clickable { imagePicker.launch("image/*") },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Add Image",
-                        tint = MaterialTheme.colorScheme.onPrimary
+                        contentDescription = "Fotoğraf Ekle",
+                        tint = BrandVolt,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-            
-            // Kullanıcı Adı
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Username") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null
-                    )
-                }
-            )
-            
-            // Yaş
-            OutlinedTextField(
-                value = age,
-                onValueChange = { age = it },
-                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
-                label = { Text("Age") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.CalendarToday,
-                        contentDescription = null
-                    )
-                }
-            )
-            
-            // Şehir Seçimi (Dropdown)
-            ExposedDropdownMenuBox(
-                expanded = isCityDropdownExpanded,
-                onExpandedChange = { isCityDropdownExpanded = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-            ) {
+
+            // 2. Giriş Alanları
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                // Kullanıcı Adı
                 OutlinedTextField(
-                    value = selectedCity,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("City") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCityDropdownExpanded) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Kullanıcı Adı") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Person, null, tint = Obsidian) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    ),
+                    singleLine = true
                 )
-                
-                ExposedDropdownMenu(
+
+                // Yaş
+                OutlinedTextField(
+                    value = age,
+                    onValueChange = { age = it },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = { Text("Yaş") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.CalendarToday, null, tint = Obsidian) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    ),
+                    singleLine = true
+                )
+
+                // Şehir Seçimi
+                ExposedDropdownMenuBox(
                     expanded = isCityDropdownExpanded,
-                    onDismissRequest = { isCityDropdownExpanded = false }
+                    onExpandedChange = { isCityDropdownExpanded = it }
                 ) {
-                    Cities.list.forEach { city ->
-                        DropdownMenuItem(
-                            text = { Text(city) },
-                            onClick = {
-                                selectedCity = city
-                                isCityDropdownExpanded = false
-                            }
+                    OutlinedTextField(
+                        value = selectedCity,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Şehir") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCityDropdownExpanded) },
+                        leadingIcon = { Icon(Icons.Default.LocationOn, null, tint = Obsidian) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Obsidian,
+                            unfocusedBorderColor = Color.LightGray,
+                            focusedLabelColor = Obsidian,
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
                         )
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = isCityDropdownExpanded,
+                        onDismissRequest = { isCityDropdownExpanded = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        Cities.list.forEach { city ->
+                            DropdownMenuItem(
+                                text = { Text(city) },
+                                onClick = {
+                                    selectedCity = city
+                                    isCityDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Hakkında
+                OutlinedTextField(
+                    value = about,
+                    onValueChange = { about = it },
+                    label = { Text("Hakkımda (Opsiyonel)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 5,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    )
+                )
+            }
+
+            // 3. İlgi Alanları Bölümü
+            Row(
+                Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Interests, null, modifier = Modifier.size(18.dp), tint = Obsidian)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "İLGİ ALANLARI",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        color = Color.Gray
+                    )
+                )
+            }
+
+            // Yatay Spor Listesi
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 4.dp)
+            ) {
+                items(Sports.allSports) { sportInfo ->
+                    val key = sportInfo.nameEn.lowercase()
+                    val isSelected = selectedSports.contains(key)
+                    val sportColor = sportInfo.color
+
+                    Surface(
+                        modifier = Modifier.clickable {
+                            selectedSports = if (isSelected) selectedSports - key else selectedSports + key
+                        },
+                        color = if (isSelected) Obsidian else Color.White,
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, if (isSelected) Obsidian else Color.LightGray.copy(alpha = 0.5f)),
+                        shadowElevation = if (isSelected) 4.dp else 0.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                painter = painterResource(id = sportInfo.iconResId),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = sportInfo.nameEn.uppercase(),
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp,
+                                color = if (isSelected) sportColor else Color.Gray
+                            )
+                        }
                     }
                 }
             }
-            
-            // Hakkında
-            OutlinedTextField(
-                value = about,
-                onValueChange = { about = it },
-                label = { Text("About (Optional)") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                minLines = 3,
-                maxLines = 5
-            )
-            
-            // İlgi Alanları Başlığı
-            Text(
-                text = "Interest ",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-            )
-            
-            // İlgi Alanları Listesi
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(Sports.allSports) { sportInfo ->
-                    val key = sportInfo.nameEn.lowercase()   // "Football" -> "football"
-                    val label = sportInfo.name              // Görünen isim: "Futbol"
 
-                    FilterChip(
-                        selected = selectedSports.contains(key),
-                        onClick = {
-                            selectedSports = if (selectedSports.contains(key)) {
-                                selectedSports - key
-                            } else {
-                                selectedSports + key
-                            }
-                        },
-                        label = { Text(label) },
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Hata Mesajı
+            AnimatedVisibility(visible = errorMessage != null) {
+                Text(
+                    text = errorMessage ?: "",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    textAlign = TextAlign.Center
+                )
             }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Kaydet Butonu
+
+            // 4. Kaydet Butonu
             Button(
                 onClick = {
                     if (username.isBlank() || age.isBlank() || selectedCity.isBlank() || selectedSports.isEmpty()) {
-                        errorMessage = "Please fill in all fields."
+                        errorMessage = "Lütfen tüm zorunlu alanları doldurun."
                         return@Button
                     }
-                    
+
                     scope.launch {
                         try {
                             isLoading = true
-                            val userId = auth.currentUser?.uid ?: return@launch
+                            errorMessage = null
                             
-                            // Profil fotoğrafını yükle
+                            // Network kontrolü
+                            if (!NetworkUtils.isNetworkAvailable(context)) {
+                                errorMessage = "İnternet bağlantısı bulunamadı. Lütfen bağlantınızı kontrol edin."
+                                isLoading = false
+                                return@launch
+                            }
+                            
+                            val userId = auth.currentUser?.uid ?: return@launch
+
+                            // 1. Profil Fotoğrafı Yükleme - timeout ile
                             var photoUrl = ""
                             if (profileImageUri != null) {
-                                photoUrl = userRepository.uploadProfileImage(userId, profileImageUri!!)
+                                photoUrl = withNetworkTimeout(NetworkUtils.UPLOAD_TIMEOUT_MS) {
+                                    userRepository.uploadProfileImage(userId, profileImageUri!!)
+                                }
                             }
 
-                            // Profil bilgilerini kaydet
+                            // 2. Profil Verisi Oluşturma
                             val ageInt = age.toIntOrNull()
-                            if (ageInt == null || ageInt <= 0 || ageInt >= 120) {
-                                throw Exception("Enter the valid age")
+                            if (ageInt == null || ageInt <= 0 || ageInt >= 110) {
+                                throw Exception("Lütfen geçerli bir yaş girin.")
                             }
-                            val success = userRepository.createUserProfile(
-                                userId = userId,
-                                username = username,
-                                age = ageInt,
-                                city = selectedCity,
-                                sports = selectedSports.toList(),
-                                about = about
-                            )
-                            
-                            // Profil fotoğrafı varsa güncelle
+
+                            val success = withNetworkTimeout {
+                                userRepository.createUserProfile(
+                                    userId = userId,
+                                    username = username,
+                                    age = ageInt,
+                                    city = selectedCity,
+                                    sports = selectedSports.toList(),
+                                    about = about
+                                )
+                            }
+
+                            // 3. Fotoğraf URL Güncelleme
                             if (photoUrl.isNotEmpty()) {
-                                userRepository.updateProfileImage(userId, photoUrl)
+                                withNetworkTimeout {
+                                    userRepository.updateProfileImage(userId, photoUrl)
+                                }
                             }
-                            
-                            if (!success) {
-                                throw Exception("An error occurred while creating the profile")
-                            }
-                            
+
+                            if (!success) throw Exception("Profil oluşturulamadı.")
+
                             navController.navigate("main") {
                                 popUpTo("createProfile") { inclusive = true }
                             }
                         } catch (e: Exception) {
-                            errorMessage = "An error occurred while creating the profile: ${e.message}"
-                            Log.e("CreateProfileScreen", "Error creating profile", e )
-                            Toast.makeText(context, " ${e.message}", Toast.LENGTH_SHORT).show()
+                            errorMessage = NetworkUtils.getErrorMessage(e)
+                            Log.e("CreateProfileScreen", "Error", e)
+                            Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
                         } finally {
                             isLoading = false
                         }
@@ -342,30 +392,30 @@ fun CreateProfileScreen(navController: NavController) {
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                enabled = !isLoading
+                    .height(56.dp)
+                    .shadow(if (isLoading) 0.dp else 4.dp, RoundedCornerShape(16.dp)),
+                enabled = !isLoading,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Obsidian,
+                    contentColor = BrandVolt,
+                    disabledContainerColor = Obsidian.copy(alpha = 0.7f)
+                )
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = BrandVolt)
                 } else {
                     Text(
-                        text = "Create Profile",
-                        style = MaterialTheme.typography.labelLarge
+                        text = "PROFİLİ OLUŞTUR",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
                     )
                 }
             }
-            
-            // Hata Mesajı
-            errorMessage?.let { message ->
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
+
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
-} 
+}

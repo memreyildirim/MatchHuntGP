@@ -1,18 +1,13 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
@@ -26,6 +21,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Event
@@ -33,10 +29,11 @@ import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
 import com.emreyildirim.matchhuntv1.utils.Sports
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.delay
 import com.emreyildirim.matchhuntv1.ui.components.LocationText
 import com.google.android.gms.maps.model.LatLng
 import com.emreyildirim.matchhuntv1.utils.Config
+import android.widget.Toast
+import androidx.compose.ui.graphics.Color
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,8 +48,8 @@ fun FindEventScreen(
     var expanded by remember { mutableStateOf(false) }
     var selectedEventId by remember { mutableStateOf<String?>(null) }
     val sheetState = rememberModalBottomSheetState()
-    val snackbarHostState = remember { SnackbarHostState() }
     var isScreenVisible by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val events by viewModel.events.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -68,86 +65,30 @@ fun FindEventScreen(
         selectedEventId?.let { id -> events.find { it.id == id } }
     }
 
-    // Handle screen visibility and Snackbar cleanup
+    // Handle screen visibility
     DisposableEffect(Unit) {
         isScreenVisible = true
         onDispose {
             isScreenVisible = false
-            snackbarHostState.currentSnackbarData?.dismiss()
-            viewModel.resetError() // Add this function to your ViewModel if it doesn't exist
+            viewModel.resetError()
         }
     }
 
-    // Show loading and error messages as Snackbar
+    // Show loading and error messages as Toast
     LaunchedEffect(isLoading, error, isScreenVisible) {
         if (!isScreenVisible) return@LaunchedEffect
 
-        if (isLoading) {
-            snackbarHostState.showSnackbar(
-                message = "Processing...",
-                duration = SnackbarDuration.Indefinite,
-                actionLabel = "Close"
-            )
-        } else if (error != null) {
-            snackbarHostState.showSnackbar(
-                message = error!!,
-                duration = SnackbarDuration.Short,
-                actionLabel = "Close"
-            )
+        if (error != null) {
+            Toast.makeText(
+                context,
+                error!!,
+                Toast.LENGTH_LONG
+            ).show()
+            viewModel.resetError() // Toast gösterildikten sonra error'ı temizle
         }
     }
 
-    Scaffold(
-        snackbarHost = { 
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier.padding(6.dp)
-            ) { data ->
-                Snackbar(
-                    modifier = Modifier.padding(8.dp),
-                    containerColor = if (isLoading) 
-                        MaterialTheme.colorScheme.surfaceVariant 
-                    else 
-                        MaterialTheme.colorScheme.errorContainer,
-                    contentColor = if (isLoading)
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    else
-                        MaterialTheme.colorScheme.onErrorContainer,
-                    action = {
-                        TextButton(
-                            onClick = { data.dismiss() },
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = if (isLoading)
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                else
-                                    MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        ) {
-                            Text("Close")
-                        }
-                    }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "Error",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                        Text(data.visuals.message)
-                    }
-                }
-            }
-        }
+    Scaffold(contentColor = MaterialTheme.colorScheme.secondaryContainer
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -159,12 +100,19 @@ fun FindEventScreen(
         ) {
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { 
+                onValueChange = {
                     searchQuery = it
                     viewModel.searchEvents(it, selectedSportType)
                 },
                 label = { Text("Search Event") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Obsidian,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedLabelColor = Obsidian,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
             )
 
             ExposedDropdownMenuBox(
@@ -179,7 +127,14 @@ fun FindEventScreen(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .menuAnchor()
+                        .menuAnchor(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    )
                 )
 
                 ExposedDropdownMenu(
@@ -244,7 +199,7 @@ fun EventCard(
     onClick: () -> Unit
 ) {
     val isFull = event.participants.size >= event.maxParticipants
-    
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -273,9 +228,9 @@ fun EventCard(
                 Text(
                     text = event.title,
                     style = MaterialTheme.typography.titleLarge,
-                    color = if (isFull) 
+                    color = if (isFull)
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    else 
+                    else
                         MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f),
                     maxLines = 2,
@@ -283,14 +238,14 @@ fun EventCard(
                 )
                 AssistChip(
                     onClick = { },
-                    label = { 
+                    label = {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             // Sport type icon
                             val sportInfo = Sports.getSportInfo(event.sportType)
-                            
+
                             if (sportInfo != null) {
                                 Icon(
                                     painter = painterResource(id = sportInfo.iconResId),
@@ -300,7 +255,7 @@ fun EventCard(
                                     tint = null
                                 )
                             }
-                            
+
                             Text(
                                 text = Sports.getSportInfo(event.sportType)?.nameEn ?: event.sportType,
                                 maxLines = 1,
@@ -322,9 +277,9 @@ fun EventCard(
                     modifier = Modifier.widthIn(min = 80.dp, max = 120.dp)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Basic info row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -352,7 +307,7 @@ fun EventCard(
                             MaterialTheme.colorScheme.onSurface
                     )
                 }
-                
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -376,7 +331,7 @@ fun EventCard(
                     )
                 }
             }
-            
+
             if (isFull) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -402,7 +357,7 @@ fun EventDetailsSheet(
     var creatorProfile by remember { mutableStateOf<UserProfile?>(null) }
     val firestore = FirebaseFirestore.getInstance()
     val isFull = event.participants.size >= event.maxParticipants
-    
+
     LaunchedEffect(event.createdBy) {
         firestore.collection("users")
             .document(event.createdBy)
@@ -411,10 +366,11 @@ fun EventDetailsSheet(
                 creatorProfile = document.toObject(UserProfile::class.java)
             }
     }
-    
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+
     ) {
         Column(
             modifier = Modifier
@@ -431,7 +387,7 @@ fun EventDetailsSheet(
                 else
                     MaterialTheme.colorScheme.onSurface
             )
-            
+
             // Creator Info
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -477,7 +433,7 @@ fun EventDetailsSheet(
                     Text("Display Profile")
                 }
             }
-            
+
             // Description
             Text(
                 text = event.description,
@@ -585,4 +541,4 @@ fun EventDetailsSheet(
             }
         }
     }
-} 
+}
