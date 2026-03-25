@@ -32,8 +32,8 @@ class AuthViewModel : ViewModel() {
     private val _isEmailVerified = MutableStateFlow(false)
     val isEmailVerified: StateFlow<Boolean> = _isEmailVerified.asStateFlow()
 
-    private val _isProfileComplete = MutableStateFlow(false)
-    val isProfileComplete: StateFlow<Boolean> = _isProfileComplete.asStateFlow()
+    private val _isProfileComplete = MutableStateFlow<Boolean?>(null)
+    val isProfileComplete: StateFlow<Boolean?> = _isProfileComplete.asStateFlow()
     
     private fun handleError(e: Exception): String {
         return NetworkUtils.getErrorMessage(e)
@@ -44,26 +44,47 @@ class AuthViewModel : ViewModel() {
             try {
                 _isLoading.value = true
                 _error.value = null
+                _isProfileComplete.value = null
+
                 val result = auth.signInWithEmailAndPassword(email, password).await()
-                
-                // Kullanıcı verilerini yenile
-                auth.currentUser?.reload()?.await()
-                
+                val signedInUser = result.user ?: auth.currentUser
+                if (signedInUser == null) {
+                    _error.value = "Giriş yapan kullanıcı bulunamadı"
+                    return@launch
+                }
+
+                // Auth state'i hemen güncelle ki UI login ekranında takılı kalmasın
+                _currentUser.value = signedInUser
+
+                // Kullanıcı verilerini yenile (hata olursa login akışını kesme)
+                try {
+                    signedInUser.reload().await()
+                } catch (e: Exception) {
+                    Log.w("Auth", "User reload failed after sign in: ${e.message}")
+                }
+
+                // E-posta doğrulama bilgisini state'e hemen yansıt
+                val emailVerified = auth.currentUser?.isEmailVerified == true
+                _isEmailVerified.value = emailVerified
+
                 // E-posta doğrulamasını kontrol et
-                if (auth.currentUser?.isEmailVerified != true) {
+                if (!emailVerified) {
                     auth.signOut() // Doğrulanmamış kullanıcıyı oturumdan çıkar
+                    _currentUser.value = null
+                    _isEmailVerified.value = false
                     _error.value = "Lütfen e-posta adresinizi doğrulayın"
                     return@launch
                 }
-                
-                _currentUser.value = auth.currentUser
-                _isEmailVerified.value = true
 
-                // Kullanıcının FCM token'ını güncelle
-                TokenUpdate.updateUserFcmToken()
+                // FCM token güncellemesi başarısız olsa bile navigation akışını bloklama
+                try {
+                    TokenUpdate.updateUserFcmToken()
+                } catch (e: Exception) {
+                    Log.w("Auth", "FCM token update failed: ${e.message}")
+                }
 
                 // Profil tamamlama durumunu kontrol et
-                val isComplete = userRepository.isProfileComplete(auth.currentUser!!.uid)
+                val isComplete = userRepository.isProfileComplete(signedInUser.uid)
                 _isProfileComplete.value = isComplete
             } catch (e: Exception) {
                 _error.value = handleError(e)
@@ -154,7 +175,7 @@ class AuthViewModel : ViewModel() {
         return auth.currentUser?.isEmailVerified ?: false
     }
 
-    fun isProfileComplete(): Boolean {
+    fun isProfileComplete(): Boolean? {
         return _isProfileComplete.value
     }
 

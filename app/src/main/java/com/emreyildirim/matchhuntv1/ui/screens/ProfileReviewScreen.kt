@@ -1,6 +1,7 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,10 +34,12 @@ import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.data.model.Review
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
+import com.emreyildirim.matchhuntv1.ui.viewmodel.ReportViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import com.emreyildirim.matchhuntv1.utils.Sports
 import com.emreyildirim.matchhuntv1.ui.components.ReviewCard
 import com.emreyildirim.matchhuntv1.utils.RatingCard.RatingStatItem
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +47,8 @@ fun ProfileReviewScreen(
     userId: String,
     viewModel: EventViewModel,
     onNavigateBack: () -> Unit,
-    navController: NavController
+    navController: NavController,
+    reportViewModel: ReportViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     // Veri State'leri
     var userProfile by remember { mutableStateOf<UserProfile?>(null) }
@@ -52,6 +57,14 @@ fun ProfileReviewScreen(
     var skillRating by remember { mutableStateOf(0f) }
     var behaviorRating by remember { mutableStateOf(0f) }
     var teamRating by remember { mutableStateOf(0f) }
+    var showMenu by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var selectedReasonCode by remember { mutableStateOf("abuse") }
+    var reasonText by remember { mutableStateOf("") }
+
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+
 
     // Genel ortalama hesaplama
     val averageRating = remember(skillRating, behaviorRating, teamRating) {
@@ -63,6 +76,7 @@ fun ProfileReviewScreen(
     val scrollState = rememberScrollState()
     val bottomSheetState = rememberModalBottomSheetState()
     var showReviewsSheet by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     // Etkinlik Verileri
     val createdEvents by viewModel.createdEventsForUser.collectAsState()
@@ -114,6 +128,24 @@ fun ProfileReviewScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Daha Fazla")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Şikayet Et", color = MaterialTheme.colorScheme.onSurface) },
+                            onClick = {
+                                showMenu = false
+                                showReportDialog = true
+                            },
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
             )
         }
@@ -142,7 +174,11 @@ fun ProfileReviewScreen(
                         username = userProfile?.username ?: "Bilinmeyen Kullanıcı",
                         location = userProfile?.city ?: "Konum belirtilmedi",
                         age = userProfile?.age, // Yaş bilgisini buradan aktarıyoruz
-                        onMessageClick = { navController.navigate("messages/${userId}") }
+                        onMessageClick =  if (currentUserId != null && userId != currentUserId) {
+                            { navController.navigate("messages/${userId}") }
+                        } else {
+                            null // Kendi profilde mesaj butonu gösterme
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -286,7 +322,9 @@ fun ProfileReviewScreen(
                     )
 
                     if (userReviews.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
                             Text("Henüz değerlendirme yok.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
@@ -302,6 +340,118 @@ fun ProfileReviewScreen(
                 }
             }
         }
+
+        if (showReportDialog) {
+            AlertDialog(
+                onDismissRequest = { showReportDialog = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            reportViewModel.reportProfile(
+                                userId = userId,
+                                about = userProfile?.about,
+                                reasonCode = selectedReasonCode,
+                                reasonText = reasonText
+                            )
+                            Toast.makeText(
+                                context,
+                                "Şikayetiniz alındı. Teşekkür ederiz.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            showReportDialog = false
+                        }
+                    ) {
+                        Text("Gönder")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showReportDialog = false }) {
+                        Text("İptal")
+                    }
+                },
+                title = { Text("Profili şikayet et") },
+                text = {
+                    Column {
+                        Text("Şikayet sebebini seçin", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedReasonCode = "abuse"
+                                }
+                        ) {
+                            RadioButton(
+                                selected = selectedReasonCode == "abuse",
+                                onClick = { selectedReasonCode = "abuse" }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Taciz / uygunsuz davranış")
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedReasonCode = "spam"
+                                }
+                        ) {
+                            RadioButton(
+                                selected = selectedReasonCode == "spam",
+                                onClick = { selectedReasonCode = "spam" }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Spam / reklam")
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedReasonCode = "fake"
+                                }
+                        ) {
+                            RadioButton(
+                                selected = selectedReasonCode == "fake",
+                                onClick = { selectedReasonCode = "fake" }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Sahte profil / yanlış bilgi")
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedReasonCode = "other"
+                                }
+                        ) {
+                            RadioButton(
+                                selected = selectedReasonCode == "other",
+                                onClick = { selectedReasonCode = "other" }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Diğer")
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = reasonText,
+                            onValueChange = { reasonText = it },
+                            label = { Text("Detay (isteğe bağlı)") },
+                            singleLine = false,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -311,12 +461,14 @@ fun ProfileHeaderSection(
     username: String,
     location: String,
     age: Int? = null,
-    onMessageClick: () -> Unit
+    onMessageClick: (() -> Unit)? = null  // null = mesaj butonu gösterme
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.BottomEnd) {
             Surface(
-                modifier = Modifier.size(130.dp).padding(4.dp),
+                modifier = Modifier
+                    .size(130.dp)
+                    .padding(4.dp),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 8.dp
@@ -324,19 +476,23 @@ fun ProfileHeaderSection(
                 AsyncImage(
                     model = profileImageUrl,
                     contentDescription = "Profil",
-                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
                     contentScale = ContentScale.Crop,
                     error = painterResource(id = R.drawable.ic_profile_placeholder)
                 )
             }
-            SmallFloatingActionButton(
-                onClick = onMessageClick,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = CircleShape,
-                modifier = Modifier.offset(x = (-4).dp, y = (-4).dp)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.Message, contentDescription = "Mesaj", modifier = Modifier.size(20.dp))
+            if (onMessageClick != null) {
+                SmallFloatingActionButton(
+                    onClick = onMessageClick,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = CircleShape,
+                    modifier = Modifier.offset(x = (-4).dp, y = (-4).dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Message, contentDescription = "Mesaj", modifier = Modifier.size(20.dp))
+                }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -365,7 +521,9 @@ fun ProfileHeaderSection(
 
 @Composable
 fun SectionHeader(title: String) {
-    Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp))
+    Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 12.dp))
 }
 
 @Composable
@@ -412,7 +570,9 @@ fun EventCarousel(title: String, events: List<Event>) {
         SectionHeader(title)
         if (events.isEmpty()) {
             Surface(
-                modifier = Modifier.fillMaxWidth().height(100.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             ) {
@@ -433,7 +593,9 @@ fun EventCarousel(title: String, events: List<Event>) {
 @Composable
 fun ModernEventCard(event: Event) {
     Card(
-        modifier = Modifier.width(260.dp).shadow(4.dp, RoundedCornerShape(24.dp)),
+        modifier = Modifier
+            .width(260.dp)
+            .shadow(4.dp, RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {

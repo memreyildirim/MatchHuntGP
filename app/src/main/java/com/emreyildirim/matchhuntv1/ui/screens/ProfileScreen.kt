@@ -865,13 +865,13 @@ fun PostDetailCard(
                             },
                             enabled = !isDeleting
                         )
-                        DropdownMenuItem(
-                            text = { Text("Paylaş") },
-                            onClick = {
-                                showMenu = false
-                                // TODO: Paylaş işlemi
-                            }
-                        )
+//                        DropdownMenuItem(
+//                            text = { Text("Paylaş") },
+//                            onClick = {
+//                                showMenu = false
+//                                // TODO: Paylaş işlemi
+//                            }
+//                        )
                         DropdownMenuItem(
                             text = { Text("Şikayet Et") },
                             onClick = {

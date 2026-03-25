@@ -1,9 +1,11 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,6 +35,7 @@ import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Message
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.ui.viewmodel.MessageViewModel
+import com.emreyildirim.matchhuntv1.ui.viewmodel.ReportViewModel
 import com.emreyildirim.matchhuntv1.ui.theme.* // Tema renklerini buradan import ediyoruz
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -51,7 +54,8 @@ sealed class MessageListItem {
 fun MessageScreen(
     onNavigateBack: () -> Unit,
     targetUserId: String? = null,
-    viewModel: MessageViewModel
+    viewModel: MessageViewModel,
+    reportViewModel: ReportViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     var messageText by remember { mutableStateOf("") }
     val messages by viewModel.messages.collectAsState()
@@ -66,6 +70,12 @@ fun MessageScreen(
     val messageListItems = remember(messages) {
         buildMessageListWithHeaders(messages)
     }
+
+    var showMenu by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var selectedReasonCode by remember { mutableStateOf("abuse") }
+    var reasonText by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     LaunchedEffect(targetUserId) {
         if (targetUserId != null) {
@@ -156,8 +166,23 @@ fun MessageScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* Sohbet Seçenekleri */ }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = null, tint = Obsidian)
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = null, tint = Obsidian)
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            containerColor = MaterialTheme.colorScheme.background
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Sohbeti şikayet et") },
+                                onClick = {
+                                    showMenu = false
+                                    showReportDialog = true
+                                }
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -247,6 +272,99 @@ fun MessageScreen(
                 }
             }
         }
+    }
+
+    if (showReportDialog) {
+        val lastMessage = messages.lastOrNull()
+
+        AlertDialog(
+            onDismissRequest = { showReportDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (lastMessage != null) {
+                            reportViewModel.reportMessage(
+                                message = lastMessage,
+                                reasonCode = selectedReasonCode,
+                                reasonText = reasonText
+                            )
+                        }
+                        Toast.makeText(
+                            context,
+                            "Şikayetiniz alındı. Teşekkür ederiz.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        showReportDialog = false
+                    }
+                ) {
+                    Text("Gönder")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReportDialog = false }) {
+                    Text("İptal")
+                }
+            },
+            title = { Text("Sohbeti şikayet et") },
+            text = {
+                Column {
+                    Text("Şikayet sebebini seçin", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedReasonCode = "abuse" }
+                    ) {
+                        RadioButton(
+                            selected = selectedReasonCode == "abuse",
+                            onClick = { selectedReasonCode = "abuse" }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Taciz / uygunsuz içerik")
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedReasonCode = "spam" }
+                    ) {
+                        RadioButton(
+                            selected = selectedReasonCode == "spam",
+                            onClick = { selectedReasonCode = "spam" }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Spam / reklam")
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedReasonCode = "other" }
+                    ) {
+                        RadioButton(
+                            selected = selectedReasonCode == "other",
+                            onClick = { selectedReasonCode = "other" }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Diğer")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = reasonText,
+                        onValueChange = { reasonText = it },
+                        label = { Text("Detay (isteğe bağlı)") },
+                        singleLine = false,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        )
     }
 }
 

@@ -127,7 +127,6 @@ export const onMessageCreated = onDocumentCreated(
 
     const receiverId = messageData.receiverId as string;
     const senderId = messageData.senderId as string;
-    const text = (messageData.text as string) || "";
     const chatId = (messageData.chatId as string) || "";
 
     if (!receiverId || !senderId) {
@@ -154,8 +153,8 @@ export const onMessageCreated = onDocumentCreated(
     const payload: admin.messaging.Message = {
       token: fcmToken,
       notification: {
-        title: senderName,
-        body: text || "Yeni mesajınız var",
+          title: "Yeni Mesaj",
+          body: `${senderName} kullanıcısından yeni bir mesajın var`,
       },
       data: {
         type: "message",

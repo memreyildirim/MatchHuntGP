@@ -85,12 +85,12 @@ fun MessageListScreen(
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundGradient)
+                //.background(backgroundGradient)
                 .padding(paddingValues)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {

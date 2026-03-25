@@ -1,38 +1,22 @@
 package com.emreyildirim.matchhuntv1.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
 import com.emreyildirim.matchhuntv1.ui.screens.*
-import com.emreyildirim.matchhuntv1.ui.viewmodel.AuthViewModel
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
 import com.emreyildirim.matchhuntv1.ui.viewmodel.MessageViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun AppNavigation() {
@@ -41,9 +25,6 @@ fun AppNavigation() {
     val auth = FirebaseAuth.getInstance()
     val userRepository = UserRepository()
     val scope = rememberCoroutineScope()
-    var isProfileComplete by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(true) }
-    val authViewModel: AuthViewModel = viewModel()
     // Mesajlaşma ile ilgili tüm ekranlar için paylaşılan ViewModel (Context ile)
     val messageViewModel: MessageViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
@@ -57,6 +38,13 @@ fun AppNavigation() {
     // Profil tamamlama kontrolü ve yönlendirme
     suspend fun checkAndNavigateToNextScreen() {
         val isProfileComplete = userRepository.isProfileComplete(auth.currentUser!!.uid)
+            ?: run {
+                // Eski kullanıcılar (alan yok/null): önce CompleteProfile ekranı
+                navController.navigate("completeProfile") {
+                    popUpTo("splash") { inclusive = true }
+                }
+                return
+            }
         if (!isProfileComplete) {
             navController.navigate("createProfile") {
                 popUpTo("splash") { inclusive = true }
@@ -97,12 +85,9 @@ fun AppNavigation() {
                     navController.navigate("createProfile") {
                         popUpTo("splash") { inclusive = true }
                     }
-                } finally {
-                    isLoading = false
                 }
             }
         } else {
-            isLoading = false
             navController.navigate("login") {
                 popUpTo("splash") { inclusive = true }
             }

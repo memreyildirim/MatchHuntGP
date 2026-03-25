@@ -28,7 +28,21 @@ fun EmailVerificationScreen(navController: NavController) {
         while (true) {
             authViewModel.checkEmailVerification()
             if (authViewModel.isEmailVerified()) {
-                navController.navigate("completeProfile") {
+                authViewModel.checkProfileCompletion()
+
+                // Profil sonucunu kısa süre bekle.
+                repeat(10) {
+                    if (authViewModel.isProfileComplete() != null) return@repeat
+                    delay(300)
+                }
+
+                val profileState = authViewModel.isProfileComplete()
+                val targetRoute = when (profileState) {
+                    true -> "main"
+                    false -> "createProfile"
+                    null -> "completeProfile" // Alan yok/null kullanıcılar için eski akış
+                }
+                navController.navigate(targetRoute) {
                     popUpTo("emailVerification") { inclusive = true }
                 }
                 break

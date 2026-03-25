@@ -1,5 +1,6 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -29,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,6 +39,7 @@ import coil.compose.AsyncImage
 import com.emreyildirim.matchhuntv1.data.model.Post
 import com.emreyildirim.matchhuntv1.ui.viewmodel.SocialFeedViewModel
 import com.emreyildirim.matchhuntv1.ui.viewmodel.MessageViewModel
+import com.emreyildirim.matchhuntv1.ui.viewmodel.ReportViewModel
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
 import com.emreyildirim.matchhuntv1.utils.Sports
 import com.google.firebase.auth.FirebaseAuth
@@ -62,7 +65,7 @@ fun SocialFeedScreen(
     val hasMorePosts by viewModel.hasMorePosts.collectAsState()
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val navigateToProfile by viewModel.navigateToProfile.collectAsState()
-    
+
     // Sadece toplam okunmamış mesaj sayısını dinle - her render'da hesaplama yapılmaz
     val unreadMessageCount by messageViewModel.totalUnreadCount.collectAsState()
 
@@ -211,13 +214,18 @@ fun PostCard(
     post: Post,
     onLikeClick: (String) -> Unit,
     onCommentSubmit: (String) -> Unit,
-    onNavigateToProfile: (String) -> Unit
+    onNavigateToProfile: (String) -> Unit,
+    reportViewModel: ReportViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val userRepository = remember { UserRepository() }
     var profileImageUrl by remember { mutableStateOf("") }
     var commentText by remember { mutableStateOf("") }
     var showComments by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var selectedReasonCode by remember { mutableStateOf("abuse") }
+    var reasonText by remember { mutableStateOf("") }
 
     var isLiked by remember(post.likedBy) { mutableStateOf(post.likedBy.contains(currentUserId)) }
     var likeCount by remember(post.likes) { mutableStateOf(post.likes) }
@@ -235,6 +243,8 @@ fun PostCard(
     val sportColor = remember(post.sportType) {
         Sports.getSportInfo(post.sportType)?.color ?: Color.Black
     }
+
+    val context = LocalContext.current
 
     LaunchedEffect(post.userId) {
         val userData = userRepository.getUserProfileData(post.userId)
@@ -282,7 +292,27 @@ fun PostCard(
                         fontWeight = FontWeight.Black
                     )
                 }
-                IconButton(onClick = {}) { Icon(Icons.Default.MoreVert, null, tint = Color.Gray, modifier = Modifier.size(20.dp)) }
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Şikayet Et", color = MaterialTheme.colorScheme.onSurface) },
+                            onClick = {
+                                showMenu = false
+                                showReportDialog = true
+                            },
+                        )
+                    }
+                }
             }
 
             Box(
@@ -452,6 +482,96 @@ fun PostCard(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        if (showReportDialog) {
+            AlertDialog(
+                onDismissRequest = { showReportDialog = false },
+                containerColor = MaterialTheme.colorScheme.background,
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            reportViewModel.reportPost(
+                                post = post,
+                                reasonCode = selectedReasonCode,
+                                reasonText = reasonText
+                            )
+                            Toast.makeText(
+                                context,
+                                "Şikayetiniz alındı. Teşekkür ederiz.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            showReportDialog = false
+                        }
+                    ) {
+                        Text("Gönder")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showReportDialog = false }) {
+                        Text("İptal")
+                    }
+                },
+                title = { Text("Gönderiyi şikayet et") },
+                text = {
+                    Column {
+                        Text("Şikayet sebebini seçin", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedReasonCode = "abuse" }
+                        ) {
+                            RadioButton(
+                                selected = selectedReasonCode == "abuse",
+                                onClick = { selectedReasonCode = "abuse" }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Taciz / uygunsuz içerik")
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedReasonCode = "spam" }
+                        ) {
+                            RadioButton(
+                                selected = selectedReasonCode == "spam",
+                                onClick = { selectedReasonCode = "spam" }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Spam / reklam")
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedReasonCode = "other" }
+                        ) {
+                            RadioButton(
+                                selected = selectedReasonCode == "other",
+                                onClick = { selectedReasonCode = "other" }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Diğer")
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = reasonText,
+                            onValueChange = { reasonText = it },
+                            label = { Text("Detay (isteğe bağlı)") },
+                            singleLine = false,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            )
         }
     }
 }

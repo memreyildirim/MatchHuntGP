@@ -91,4 +91,8 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-analytics")
+
+    //Appium Java Client için testImplementations
+    api("io.appium:java-client:9.2.2")
+
 }

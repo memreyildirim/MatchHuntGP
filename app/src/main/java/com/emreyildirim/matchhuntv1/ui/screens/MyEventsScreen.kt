@@ -116,6 +116,7 @@ fun MyEventsScreen(
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize()
+                .background(color = MaterialTheme.colorScheme.background)
         ) { page ->
             when (page) {
                 0 -> MyCreatedEventsList(

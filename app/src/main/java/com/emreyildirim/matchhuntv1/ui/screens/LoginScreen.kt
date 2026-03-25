@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -51,34 +52,43 @@ fun LoginScreen(navController: NavController) {
     val isProfileComplete by authViewModel.isProfileComplete.collectAsState()
     val isEmailVerified by authViewModel.isEmailVerified.collectAsState()
     val currentUser by authViewModel.currentUser.collectAsState()
+    var profileCheckRequested by remember { mutableStateOf(false) }
 
     // Email format kontrolü için Regex
     val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[a-z]{2,}\$".toRegex()
     val isEmailValid = email.matches(emailRegex)
 
-    // Auth Durumu Takibi - Email verification kontrolü
-    LaunchedEffect(currentUser, isEmailVerified) {
-        if (currentUser != null && !isEmailVerified) {
-            authViewModel.checkEmailVerification()
-            navController.navigate("emailVerification") {
-                popUpTo("login") { inclusive = true }
+    LaunchedEffect(currentUser, isEmailVerified, isProfileComplete, isLoading) {
+        if (currentUser == null) return@LaunchedEffect
+        // Giriş işlemi tamamlanmadan yönlendirme kararı verme
+        if (isLoading) return@LaunchedEffect
+        if (!isEmailVerified) {
+            navController.navigate("emailVerification") { popUpTo("login") { inclusive = true } }
+            return@LaunchedEffect
+        }
+        // isEmailVerified == true ama isProfileComplete null ise DB'den tekrar sorgu yap.
+        if (isProfileComplete == null) {
+            if (!profileCheckRequested) {
+                profileCheckRequested = true
+                authViewModel.checkProfileCompletion()
+                return@LaunchedEffect
             }
+            // Alan yok/null kullanıcılar için eski akış: önce CompleteProfile ekranı
+            navController.navigate("completeProfile") { popUpTo("login") { inclusive = true } }
+            return@LaunchedEffect
+        }
+
+        if (isProfileComplete == false) {
+            navController.navigate("createProfile") { popUpTo("login") { inclusive = true } }
+        } else {
+            navController.navigate("main") { popUpTo("login") { inclusive = true } }
         }
     }
 
-    // Profil Tamamlama Yönlendirmesi - Tüm bağımlılıkları izle
-    // signIn() içinde zaten isProfileComplete ve isEmailVerified set ediliyor
-    LaunchedEffect(currentUser, isEmailVerified, isProfileComplete) {
-        if (currentUser != null && isEmailVerified) {
-            if (!isProfileComplete) {
-                navController.navigate("completeProfile") {
-                    popUpTo("login") { inclusive = true }
-                }
-            } else {
-                navController.navigate("main") {
-                    popUpTo("login") { inclusive = true }
-                }
-            }
+    // Kullanıcı çıkış yaptığında bir sonraki giriş için flag'i sıfırla
+    LaunchedEffect(currentUser) {
+        if (currentUser == null) {
+            profileCheckRequested = false
         }
     }
 
@@ -105,7 +115,7 @@ fun LoginScreen(navController: NavController) {
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.logolastcircle),
-                        contentDescription = "MatchHunt Logo",
+                        contentDescription = "MatchHunt Logo", //test yaparken bunlar önemli content desc kodu testable yapar
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -148,7 +158,8 @@ fun LoginScreen(navController: NavController) {
                         label = { Text("E-posta Adresi") },
                         leadingIcon = { Icon(Icons.Default.Email, null, tint = Obsidian) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
+                            .testTag("emailTextField"),
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Obsidian,

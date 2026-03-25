@@ -23,17 +23,23 @@ class UserRepository {
 
 
 
-    suspend fun isProfileComplete(userId: String): Boolean {
+    suspend fun isProfileComplete(userId: String): Boolean? {
         return try {
             val userDoc = db.collection("users").document(userId).get().await()
-            userDoc.exists() && userDoc.data?.let { data ->
-                data["username"] != null &&
-                data["age"] != null &&
-                data["city"] != null &&
-                data["sports"] != null
-            } ?: false
+            if (!userDoc.exists()) {
+                null
+            } else {
+                val data = userDoc.data ?: return null
+                when {
+
+                    // Geriye dönük uyumluluk için eski alan adı
+                    data["isProfileComplete"] is Boolean -> data["isProfileComplete"] as Boolean
+                    // Alan yoksa yönlendirme kararı verme (yanlışlıkla createProfile'e gitmesin)
+                    else -> null
+                }
+            }
         } catch (e: Exception) {
-            false
+            null
         }
     }
 
