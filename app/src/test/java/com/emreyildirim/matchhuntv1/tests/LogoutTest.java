@@ -1,6 +1,7 @@
 package com.emreyildirim.matchhuntv1.tests;
 
 import com.emreyildirim.matchhuntv1.BaseTest;
+import com.emreyildirim.matchhuntv1.constants.TestSecrets;
 import com.emreyildirim.matchhuntv1.pages.LoginPage;
 import com.emreyildirim.matchhuntv1.pages.NavigationMenu;
 import com.emreyildirim.matchhuntv1.pages.ProfilePage;
@@ -20,7 +21,7 @@ public class LogoutTest extends BaseTest {
 
 
         loginPage.givePermission();
-        loginPage.validLoginTest("yildirimyedek8@gmail.com","Emre1234");
+        loginPage.validLoginTest(TestSecrets.getUsername(), TestSecrets.getPassword());
         navigationMenu.goToProfile();
         profilePage.logout();
 
