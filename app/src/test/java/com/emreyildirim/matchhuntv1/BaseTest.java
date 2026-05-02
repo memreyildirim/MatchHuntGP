@@ -1,7 +1,10 @@
 package com.emreyildirim.matchhuntv1;
 
-import org.junit.After;
-import org.junit.Before;
+import com.emreyildirim.matchhuntv1.constants.TestSecrets;
+import com.emreyildirim.matchhuntv1.pages.LoginPage;
+
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -13,8 +16,9 @@ public class BaseTest {
 
     protected AndroidDriver driver;
 
-    @Before
+    @BeforeTest
     public void setUp() throws MalformedURLException{
+        AppiumTestSupport.skipIfAppiumUnreachable();
         UiAutomator2Options options = new UiAutomator2Options()
                 .setPlatformName("Android")
                 .setDeviceName("emulator-5554")
@@ -26,12 +30,21 @@ public class BaseTest {
         driver = new AndroidDriver(new URL("http://127.0.0.1:4723"),options);
         System.out.println("Driver oluşturuldu mu" + (driver != null));
 
+        ensuredLoggedIn();
+
+
     }
 
-    @After
+    @AfterTest
     public void tearDown(){
         if (driver != null){
-            //driver.quit();
+            driver.quit();
         }
+    }
+
+    public void ensuredLoggedIn(){
+        LoginPage loginPage = new LoginPage(driver);
+        loginPage.givePermission();
+        loginPage.validLogin(TestSecrets.getUsername(), TestSecrets.getPassword());
     }
 }

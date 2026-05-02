@@ -1,9 +1,9 @@
 package com.emreyildirim.matchhuntv1.pages;
 
-import org.junit.Assert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.testng.Assert;
 
 import java.time.Duration;
 
@@ -31,7 +31,7 @@ public class LoginPage {
         this.wait = new WebDriverWait(driver, Duration.ofSeconds(10));
     }
 
-    public void validLoginTest(String email, String password){
+    public void validLogin(String email, String password){
         driver.findElement(emailTextField).sendKeys(email);
         driver.findElement(passwordTextField).sendKeys(password);
         driver.findElement(loginButton).click();

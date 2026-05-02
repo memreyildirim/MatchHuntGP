@@ -1,8 +1,8 @@
 package com.emreyildirim.matchhuntv1
 
-import org.junit.Test
 
-import org.junit.Assert.*
+import org.testng.Assert.assertEquals
+import org.testng.annotations.Test
 
 /**
  * Example local unit test, which will execute on the development machine (host).

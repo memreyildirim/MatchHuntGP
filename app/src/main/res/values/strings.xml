@@ -6,6 +6,7 @@
     <string name="password">Şifre</string>
     <string name="confirm_password">Şifre Tekrar</string>
     <string name="no_account">Hesabın yok mu? Kayıt ol</string>
+    <string name="no_event">Henüz bir etknlik oluşturmadınız</string>
     <string name="have_account">Zaten hesabın var mı? Giriş yap</string>
     <string name="social_feed">Sosyal Akış</string>
     <string name="events">Etkinlikler</string>
@@ -68,4 +69,269 @@
     <string name="change_about">Hakkında</string>
     <string name="change_logout">Çıkış Yap</string>
     <string name="change_delete_account">Hesabı Sil</string>
+
+    <!-- My Events screen -->
+    <string name="my_events_tab_created">My Created Events</string>
+    <string name="my_events_tab_participated">My Participated Events</string>
+    <string name="my_events_no_attended">Henüz bir etkinliğe katılmadınız</string>
+    <string name="my_events_edit">Düzenle</string>
+    <string name="my_events_requests_count">İstekler (%1$d)</string>
+    <string name="my_events_participants_header">Katılımcılar (%1$d/%2$d)</string>
+    <string name="my_events_cd_hide_participants">Katılımcıları Gizle</string>
+    <string name="my_events_cd_show_participants">Katılımcıları Göster</string>
+    <string name="my_events_cd_creator_profile">Creator Profile</string>
+    <string name="my_events_event_owner">Etkinlik Sahibi</string>
+    <string name="my_events_cd_participant_profile">Katılımcı Profili</string>
+    <string name="my_events_participants_label">Katılımcılar</string>
+    <string name="my_events_evaluate">Değerlendir</string>
+    <string name="my_events_evaluated">Değerlendirildi</string>
+    <string name="my_events_participation_requests">Katılma İstekleri</string>
+    <string name="my_events_age_format">%1$d yaş</string>
+    <string name="my_events_cd_approve">Onayla</string>
+    <string name="my_events_cd_reject">Reddet</string>
+    <string name="my_events_dialog_close">Kapat</string>
+    <string name="my_events_status_past">Geçmiş Etkinlikler</string>
+    <string name="my_events_status_active">Aktif Etkinlikler</string>
+    <string name="my_events_reviewed">Değerlendirildi</string>
+    <string name="my_events_review">Değerlendirme</string>
+    <string name="my_events_participant_summary">%1$d/%2$d katılımcı</string>
+    <string name="my_events_review_owner">Etkinlik sahibini değerlendir</string>
+    <string name="my_events_already_reviewed">Bu etkinlik zaten değerlendirilmiş</string>
+    <string name="my_events_cd_view_profile">Profili Gör</string>
+
+    <!-- Complete Profile screen -->
+    <string name="complete_profile_title">Complete The Profile</string>
+    <string name="complete_profile_description">You need to complete your profile information for start using the application,</string>
+    <string name="complete_profile_feature_personal_title">Personal Information</string>
+    <string name="complete_profile_feature_personal_desc">Add name, age and other information</string>
+    <string name="complete_profile_feature_location_title">Location</string>
+    <string name="complete_profile_feature_location_desc">Select your location</string>
+    <string name="complete_profile_feature_sports_title">Interested Sports</string>
+    <string name="complete_profile_feature_sports_desc">Select the interested sports type</string>
+    <string name="complete_profile_button_create">Create Profile</string>
+
+    <!-- Common / accessibility -->
+    <string name="cd_logo">Logo</string>
+    <string name="cd_matchhunt_logo">MatchHunt Logo</string>
+    <string name="cd_back">Geri</string>
+    <string name="cd_more">Daha fazla</string>
+    <string name="cd_profile">Profil</string>
+    <string name="cd_message">Mesaj</string>
+    <string name="cd_messages_nav">Mesajlar</string>
+    <string name="cd_like">Beğeni</string>
+    <string name="cd_send">Gönder</string>
+    <string name="cd_edit_profile">Düzenle</string>
+    <string name="cd_logout_icon">Çıkış yap</string>
+    <string name="cd_profile_photo">Profil Fotoğrafı</string>
+    <string name="cd_add_photo">Fotoğraf Ekle</string>
+    <string name="cd_profile_image">Profil Resmi</string>
+    <string name="cd_selected_image">Seçilen Resim</string>
+    <string name="cd_change_image">Değiştir</string>
+    <string name="cd_choose_date">Tarihi Seçin</string>
+    <string name="cd_choose_time">Saati Seçin</string>
+    <string name="cd_choose_location">Konum seç</string>
+    <string name="cd_create_event_button">createEventButton</string>
+    <string name="cd_tab_find_event">tabFindEvent</string>
+    <string name="cd_tab_create_event">tabCreateEvent</string>
+    <string name="tab_find_event_label">Find Event</string>
+    <string name="tab_create_event_label">Create Event</string>
+    <string name="bottom_nav_social">Sosyal</string>
+    <string name="bottom_nav_search">Ara</string>
+    <string name="bottom_nav_events">Etkinlikler</string>
+    <string name="bottom_nav_profile">Profil</string>
+
+    <!-- Auth -->
+    <string name="auth_field_email_address">E-posta Adresi</string>
+    <string name="login_title_welcome">HOŞGELDİN</string>
+    <string name="login_subtitle">Spor partnerini bulmak için giriş yap</string>
+    <string name="login_button_caps">GİRİŞ YAP</string>
+    <string name="login_forgot_password">Şifremi Unuttum</string>
+    <string name="login_error_enter_email_first">Lütfen önce e-posta adresinizi girin.</string>
+    <string name="login_error_invalid_email_format">Geçersiz e-posta formatı.</string>
+    <string name="login_reset_sent">Sıfırlama bağlantısı gönderildi.</string>
+    <string name="login_enter_valid_email">Lütfen geçerli bir e-posta adresi girin.</string>
+
+    <string name="register_title_screen">YENİ HESAP</string>
+    <string name="register_subtitle">Aramıza katıl ve partnerini bul</string>
+    <string name="register_button_caps">KAYIT OL</string>
+    <string name="password_mismatch_warning">Şifreler uyuşmuyor</string>
+    <string name="register_have_account">Zaten hesabın var mı?</string>
+    <string name="bullet_prefix">• %1$s</string>
+
+    <!-- Edit profile screen -->
+    <string name="edit_profile_title">PROFİLİ DÜZENLE</string>
+    <string name="edit_profile_interests_header">İLGİ ALANLARI</string>
+    <string name="edit_profile_fill_required_fields">Lütfen tüm zorunlu alanları doldurun.</string>
+    <string name="edit_profile_save_changes">DEĞİŞİKLİKLERİ KAYDET</string>
+    <string name="error_network_unavailable_short">İnternet bağlantısı bulunamadı.</string>
+    <string name="error_network_unavailable_detail">İnternet bağlantısı bulunamadı. Lütfen bağlantınızı kontrol edin.</string>
+
+    <!-- Create / Edit Profile -->
+    <string name="profile_field_username">Kullanıcı Adı</string>
+    <string name="profile_field_age">Yaş</string>
+    <string name="profile_field_city">Şehir</string>
+    <string name="profile_field_about_optional">Hakkımda (Opsiyonel)</string>
+    <string name="toast_profile_updated">Profil güncellendi</string>
+
+    <!-- Email verification -->
+    <string name="email_ver_title">Doğrulama e-postası</string>
+    <string name="email_ver_body">E-posta adresinize gönderilen doğrulama bağlantısına tıklayın. İşlem tamamlandığında otomatik yönlendirileceksiniz. E-postayı göremiyorsanız spam klasörünü kontrol edin.</string>
+    <string name="email_ver_resend">Doğrulama e-postasını yeniden gönder</string>
+    <string name="email_ver_resending">Yeniden gönderildi (%1$d)</string>
+    <string name="email_ver_back_to_login">Giriş ekranına dön</string>
+
+    <!-- Complaint / report dialogs (shared) -->
+    <string name="report_action_report">Şikayet Et</string>
+    <string name="report_profile_title">Profili şikayet et</string>
+    <string name="report_chat_title">Sohbeti şikayet et</string>
+    <string name="report_post_title">Gönderiyi şikayet et</string>
+    <string name="report_select_reason_title">Şikayet sebebini seçin</string>
+    <string name="report_reason_harassment_behavior">Taciz / uygunsuz davranış</string>
+    <string name="report_reason_harassment_content">Taciz / uygunsuz içerik</string>
+    <string name="report_reason_spam">Spam / reklam</string>
+    <string name="report_reason_fake_profile">Sahte profil / yanlış bilgi</string>
+    <string name="report_reason_other">Diğer</string>
+    <string name="report_optional_detail">Detay (isteğe bağlı)</string>
+
+    <!-- Message list -->
+    <string name="message_list_title">Mesajlar</string>
+    <string name="message_list_no_preview">Mesaj yok</string>
+    <string name="message_list_empty_title">Henüz mesaj yok</string>
+    <string name="message_list_empty_subtitle">Konuşmalarınız burada görünecek.</string>
+    <string name="message_list_yesterday">Dün</string>
+    <string name="message_list_search_placeholder">Mesaj ara…</string>
+    <string name="message_list_hide_chat_title">Konuşmayı Gizle</string>
+    <string name="message_list_hide_chat_body">Bu konuşmayı mesajlaşma listenizden kaldırmak istediğinizden emin misiniz? Yeni mesaj geldiğinde tekrar görünecektir.</string>
+    <string name="message_list_remove_confirm">Kaldır</string>
+    <string name="message_list_try_again">Tekrar Dene</string>
+
+    <!-- Message screen -->
+    <string name="message_placeholder">Mesaj yaz…</string>
+
+    <!-- Profile review -->
+    <string name="profile_review_screen_title">Kullanıcı Profili</string>
+    <string name="profile_review_no_reviews">Henüz değerlendirme yok.</string>
+    <string name="profile_review_no_events">Henüz etkinlik yok</string>
+
+    <!-- Edit My Event -->
+    <string name="edit_my_event_title">Etkinliğimi Düzenle</string>
+    <string name="edit_my_event_field_title">Etkinlik Başlığı</string>
+    <string name="edit_my_event_field_description">Açıklama</string>
+    <string name="edit_my_event_field_sport">Spor Türü</string>
+    <string name="edit_my_event_field_date">Tarih</string>
+    <string name="edit_my_event_field_time">Saat</string>
+    <string name="edit_my_event_field_location">Konum</string>
+    <string name="edit_my_event_field_max_participants">Maksimum Katılımcı</string>
+    <string name="edit_my_event_update">Etkinliği Güncelle</string>
+    <string name="edit_my_event_delete">Etkinliği Sil</string>
+    <string name="edit_my_event_err_past_datetime">Geçmiş bir tarih veya saat seçilemez!</string>
+    <string name="edit_my_event_err_invalid_datetime_format">Geçersiz tarih veya saat formatı!</string>
+    <string name="edit_my_event_err_past_date">Geçmiş bir tarih seçilemez!</string>
+    <string name="edit_my_event_err_past_time">Geçmiş bir saat seçilemez!</string>
+
+    <!-- Create Event -->
+    <string name="create_event_heading">Yeni etkinlik oluştur</string>
+    <string name="create_event_success_toast">Etkinlik başarıyla oluşturuldu!</string>
+    <string name="create_event_err_past_date">Geçmiş bir tarih seçemezsiniz!</string>
+    <string name="create_event_err_past_datetime">Geçmiş bir tarih ve saat seçemezsiniz!</string>
+    <string name="create_event_err_choose_location">Lütfen bir konum seçin!</string>
+    <string name="create_event_submit">Etkinlik oluştur</string>
+    <string name="dialog_select_date">Tarih seç</string>
+    <string name="create_event_pick_time_title">Saat seç</string>
+    <string name="create_event_pick_location_title">Konum seç</string>
+    <string name="create_event_field_title">Etkinlik başlığı</string>
+    <string name="create_event_field_type">Spor / tür</string>
+    <string name="create_event_field_description">Etkinlik açıklaması</string>
+    <string name="create_event_field_date">Tarih</string>
+    <string name="create_event_field_time">Saat</string>
+    <string name="create_event_field_location">Konum</string>
+    <string name="create_event_field_max_participants">Maksimum katılımcı sayısı</string>
+    <string name="choose_date_cd">Choose Date</string>
+    <string name="choose_time_cd">Choose Time</string>
+    <string name="choose_location_cd">Choose Location</string>
+
+    <!-- Find Event -->
+    <string name="find_event_search_label">Etkinlik ara</string>
+    <string name="find_event_sport_type">Spor türü</string>
+    <string name="find_event_filter_all">Tümü</string>
+    <string name="find_event_empty_title">Henüz etkinlik yok.\nİlk etkinliği sen oluştur!</string>
+    <string name="find_event_quota_full">Kota doldu</string>
+    <string name="find_event_cd_profile_photo">Profil fotoğrafı</string>
+    <string name="find_event_display_profile">Profili göster</string>
+    <string name="find_event_send_request">Katıl / iptal talebi gönder</string>
+    <string name="find_event_participate_summary">%1$d/%2$d katılımcı</string>
+
+    <!-- Profile review profile screen sections -->
+    <string name="profile_review_unknown_user">Bilinmeyen kullanıcı</string>
+    <string name="profile_review_location_unset">Konum belirtilmedi</string>
+    <string name="profile_review_section_about">Hakkımda</string>
+    <string name="profile_review_section_interests">İlgi alanları</string>
+    <string name="profile_review_rating_label_skill">Beceri</string>
+    <string name="profile_review_rating_label_behavior">Davranış</string>
+    <string name="profile_review_rating_label_team">Uyum</string>
+    <string name="profile_review_rating_count_label">Değerlendirme</string>
+    <string name="profile_review_carousel_created">Oluşturulan son 6 etkinlik</string>
+    <string name="profile_review_carousel_joined">Son katılınan 6 etkinlik</string>
+
+    <!-- Profile screen -->
+    <string name="profile_screen_title">Profil</string>
+    <string name="profile_reviews_title">Değerlendirmeler</string>
+    <string name="profile_no_reviews">Henüz değerlendirme yok</string>
+    <string name="profile_no_posts">Henüz gönderi yok</string>
+    <string name="profile_overall_rating">Genel Puan</string>
+    <string name="profile_rating_suffix">/5.0</string>
+    <string name="profile_rating_not_available">—</string>
+    <string name="toast_post_deleted">Gönderi silindi</string>
+    <string name="toast_error_generic">Hata</string>
+    <string name="profile_toast_error_with_message">Hata: %1$s</string>
+    <string name="profile_deleting">Siliniyor…</string>
+    <string name="profile_delete_post">Gönderiyi sil</string>
+    <string name="profile_placeholder_comment">Yorum yaz…</string>
+    <string name="profile_section_about_me">Hakkımda</string>
+    <string name="profile_section_interests">İlgi alanları</string>
+    <string name="profile_section_my_posts">Gönderilerim</string>
+    <string name="profile_default_display_name">MatchHunter</string>
+    <string name="profile_about_read_more">Devamını oku</string>
+    <string name="profile_about_show_less">Daha az göster</string>
+    <string name="profile_view_all_posts">Tümünü gör (%1$d)</string>
+    <string name="profile_posts_grid_empty">Henüz gönderi yok</string>
+
+    <!-- Create Post -->
+    <string name="create_post_description_counter">%1$d/250</string>
+    <string name="create_post_title">Yeni Gönderi</string>
+    <string name="create_post_add_photo">Bir fotoğraf ekleyin</string>
+    <string name="create_post_sport_type">Spor Türü</string>
+    <string name="create_post_pick_sport_hint">Spor seçin</string>
+    <string name="create_post_description_title">Açıklama</string>
+    <string name="create_post_description_hint">Neler oluyor?…</string>
+    <string name="create_post_publish">Paylaş</string>
+    <string name="create_post_source_dialog_title">Resim kaynağı seçin</string>
+    <string name="create_post_source_gallery">Galeri</string>
+    <string name="create_post_source_camera">Kamera</string>
+
+    <!-- Create profile -->
+    <string name="create_profile_title">PROFİL OLUŞTUR</string>
+    <string name="create_profile_submit">PROFİLİ OLUŞTUR</string>
+    <string name="create_profile_error_invalid_age">Lütfen geçerli bir yaş girin.</string>
+    <string name="create_profile_error_failed">Profil oluşturulamadı.</string>
+
+    <!-- Profile Rating -->
+    <string name="profile_rating_snackbar_saved">Değerlendirmeniz kaydedildi.</string>
+    <string name="profile_rating_title_participant">Katılımcıyı Puanla</string>
+    <string name="profile_rating_title_organizer">Düzenleyeni Puanla</string>
+    <string name="profile_rating_category_skill">Beceri &amp; Yetenek</string>
+    <string name="profile_rating_category_behavior">Davranış &amp; Saygı</string>
+    <string name="profile_rating_category_team">Uyum &amp; Takım İletişimi</string>
+    <string name="profile_rating_comment_label">Yorumunuz (isteğe bağlı)</string>
+    <string name="profile_rating_submit">Değerlendirmeyi Gönder</string>
+
+    <!-- Social feed -->
+    <string name="social_feed_comment_placeholder">Yorum yaz…</string>
+    <string name="social_feed_add_comment_placeholder">Yorum ekleyin…</string>
+    <string name="social_feed_empty">Henüz gönderi yok.\nİlk gönderiyi sen oluştur!</string>
+    <string name="cd_create_post_fab">Gönderi oluştur</string>
+    <string name="toast_report_submitted_thanks">Şikayetiniz alındı. Teşekkür ederiz.</string>
+    <string name="action_send">Gönder</string>
+
+
 </resources>

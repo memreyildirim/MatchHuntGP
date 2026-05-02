@@ -19,7 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -30,12 +32,16 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.emreyildirim.matchhuntv1.R
+import com.emreyildirim.matchhuntv1.ui.theme.BrandVolt
+import com.emreyildirim.matchhuntv1.ui.theme.Obsidian
+import com.emreyildirim.matchhuntv1.ui.theme.SoftGray
 import com.emreyildirim.matchhuntv1.ui.viewmodel.AuthViewModel
 import com.emreyildirim.matchhuntv1.utils.PasswordValidator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController) {
+    val context = LocalContext.current
     val authViewModel: AuthViewModel = viewModel()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -89,7 +95,7 @@ fun RegisterScreen(navController: NavController) {
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.logolastcircle),
-                        contentDescription = "MatchHunt Logo",
+                        contentDescription = stringResource(R.string.cd_matchhunt_logo),
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -98,7 +104,7 @@ fun RegisterScreen(navController: NavController) {
 
                 // Başlık
                 Text(
-                    text = "YENİ HESAP",
+                    text = stringResource(R.string.register_title_screen),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Black,
                         letterSpacing = 2.sp,
@@ -107,7 +113,7 @@ fun RegisterScreen(navController: NavController) {
                 )
 
                 Text(
-                    text = "Aramıza katıl ve partnerini bul",
+                    text = stringResource(R.string.register_subtitle),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = Color.Gray,
                         fontWeight = FontWeight.Medium
@@ -126,7 +132,7 @@ fun RegisterScreen(navController: NavController) {
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("E-posta Adresi") },
+                        label = { Text(stringResource(R.string.auth_field_email_address)) },
                         leadingIcon = { Icon(Icons.Default.Email, null, tint = Obsidian) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         modifier = Modifier.fillMaxWidth(),
@@ -150,7 +156,7 @@ fun RegisterScreen(navController: NavController) {
                             password = it
                             passwordErrors = PasswordValidator.validate(it).errors
                         },
-                        label = { Text("Şifre") },
+                        label = { Text(stringResource(R.string.password)) },
                         leadingIcon = { Icon(Icons.Default.Lock, null, tint = Obsidian) },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -182,7 +188,7 @@ fun RegisterScreen(navController: NavController) {
                         Column(modifier = Modifier.padding(horizontal = 4.dp)) {
                             passwordErrors.forEach { errorMsg ->
                                 Text(
-                                    text = "• $errorMsg",
+                                    text = stringResource(R.string.bullet_prefix, errorMsg),
                                     color = MaterialTheme.colorScheme.error,
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -194,7 +200,7 @@ fun RegisterScreen(navController: NavController) {
                     OutlinedTextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
-                        label = { Text("Şifre Tekrar") },
+                        label = { Text(stringResource(R.string.confirm_password)) },
                         leadingIcon = { Icon(Icons.Default.Lock, null, tint = Obsidian) },
                         trailingIcon = {
                             IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
@@ -223,7 +229,7 @@ fun RegisterScreen(navController: NavController) {
 
                     if (confirmPassword.isNotBlank() && password != confirmPassword) {
                         Text(
-                            text = "Şifreler uyuşmuyor",
+                            text = stringResource(R.string.password_mismatch_warning),
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 4.dp)
@@ -234,7 +240,8 @@ fun RegisterScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Genel Hata Mesajı Paneli (E-posta doğrulama dahil)
-                val emailErrorMessage = if (email.isNotBlank() && !isEmailValid) "Geçersiz e-posta formatı." else null
+                val emailErrorMessage =
+                    if (email.isNotBlank() && !isEmailValid) stringResource(R.string.login_error_invalid_email_format) else null
                 val displayMessage = error ?: emailErrorMessage
 
                 AnimatedVisibility(visible = displayMessage != null) {
@@ -280,7 +287,7 @@ fun RegisterScreen(navController: NavController) {
                         )
                     } else {
                         Text(
-                            text = "KAYIT OL",
+                            text = stringResource(R.string.register_button_caps),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 1.sp
@@ -298,13 +305,13 @@ fun RegisterScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Zaten hesabın var mı?",
+                        text = stringResource(R.string.register_have_account),
                         color = Color.Gray,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     TextButton(onClick = { navController.navigate("login") }) {
                         Text(
-                            "Giriş Yap",
+                            stringResource(R.string.login),
                             color = Obsidian,
                             fontWeight = FontWeight.Black,
                             style = MaterialTheme.typography.bodyMedium

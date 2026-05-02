@@ -1,15 +1,18 @@
 package com.emreyildirim.matchhuntv1.services
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.emreyildirim.matchhuntv1.R
+import com.emreyildirim.matchhuntv1.BuildConfig
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
@@ -23,11 +26,15 @@ class NotificationService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d("FCM", "New Token: $token")
+        if (BuildConfig.DEBUG) {
+            Log.d("FCM", "New token received")
+        }
 
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         if (uid == null) {
-            Log.d("FCM", "No user logged in, skipping token save")
+            if (BuildConfig.DEBUG) {
+                Log.d("FCM", "No user logged in, skipping token save")
+            }
             return
         }
 
@@ -39,7 +46,9 @@ class NotificationService : FirebaseMessagingService() {
                 com.google.firebase.firestore.SetOptions.merge()
             )
             .addOnSuccessListener {
-                Log.d("FCM", "Token saved to Firestore")
+                if (BuildConfig.DEBUG) {
+                    Log.d("FCM", "Token saved to Firestore")
+                }
             }
             .addOnFailureListener { e ->
                 Log.e("FCM", "Error saving token: ${e.message}")
@@ -52,7 +61,12 @@ class NotificationService : FirebaseMessagingService() {
         val eventId = message.data["eventId"]
         val type = message.data["type"]
 
-        Log.d("FCM", "Title: $title, Body: $body, data=${message.data}")
+        if (BuildConfig.DEBUG) {
+            Log.d(
+                "FCM",
+                "Push received. titlePresent=${title.isNotBlank()}, bodyPresent=${body.isNotBlank()}, dataSize=${message.data.size}"
+            )
+        }
 
         // Eğer bildirim bir etkinlik bildirimi ise ya da etkinlik güncelleme bildirimi ise, oluşturucuyu kontrol et
         if ((type == "event" || type == "event_update") && eventId != null) {
@@ -61,7 +75,9 @@ class NotificationService : FirebaseMessagingService() {
                 if (shouldShow) {
                     showNotification(title, body)
                 } else {
-                    Log.d("FCM", "Notification filtered: User is the creator of event $eventId")
+                    if (BuildConfig.DEBUG) {
+                        Log.d("FCM", "Notification filtered for event creator")
+                    }
                 }
             }
         } else {
@@ -116,6 +132,20 @@ class NotificationService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .build()
 
-        NotificationManagerCompat.from(this).notify(1001, notif)
+        // Android 13+ cihazlarda bildirim izni runtime'da reddedilebildigi icin
+        // notify cagrisindan once izin kontrolu zorunlu.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            if (BuildConfig.DEBUG) Log.w("FCM", "Notification permission not granted; skipping notify")
+            return
+        }
+
+        try {
+            NotificationManagerCompat.from(this).notify(1001, notif)
+        } catch (se: SecurityException) {
+            Log.w("FCM", "Notification permission missing at runtime", se)
+        }
     }
 }

@@ -4,6 +4,7 @@ import android.text.format.DateUtils
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.emreyildirim.matchhuntv1.BuildConfig
 import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.utils.NetworkUtils
 import com.emreyildirim.matchhuntv1.utils.withNetworkTimeout
@@ -173,7 +174,7 @@ class EventViewModel : ViewModel() {
     fun loadEventsForUserReviewScreen(userId: String) {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "loadEventsForUserReviewScreen started for userId=$userId")
+                if (BuildConfig.DEBUG) Log.d(TAG, "loadEventsForUserReviewScreen started")
                 _isLoading.value = true
                 _error.value = null
                 // Not: ProfileReviewScreen "oluşturulan" için createdAt, "katılınan (tamamlanan)" için endDate'e göre liste istiyor.
@@ -193,7 +194,7 @@ class EventViewModel : ViewModel() {
                 val createdEvents = createdSnapshot.documents.mapNotNull { doc ->
                     doc.toObject(Event::class.java)?.copy(id = doc.id)
                 }
-                Log.d(TAG, "loadEventsForUserReviewScreen createdEvents size=${createdEvents.size} userId=$userId")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Created events fetched: ${createdEvents.size}")
                 _createdEventsForUser.value = createdEvents
 
                 val now = Date()
@@ -211,17 +212,16 @@ class EventViewModel : ViewModel() {
                 val participatedPastEvents = participatedSnapshot.documents.mapNotNull { doc ->
                     doc.toObject(Event::class.java)?.copy(id = doc.id)
                 }
-                Log.d(
-                    TAG,
-                    "loadEventsForUserReviewScreen participatedPastEvents size=${participatedPastEvents.size} userId=$userId now=$now"
-                )
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "Participated past events fetched: ${participatedPastEvents.size}")
+                }
                 _participatedPastEventsForUser.value = participatedPastEvents
 
                 // Geriye dönük uyumluluk: Bu fonksiyonu çağırıp events üzerinden filtreleyen eski ekranlar varsa bozulmasın.
                 // (Oluşturulan + Katılınan) birleşik listeyi de dolduruyoruz.
                 _events.value = (createdEvents + participatedPastEvents).distinctBy { it.id }
             } catch (e: Exception) {
-                Log.e(TAG, "loadEventsForUserReviewScreen error for userId=$userId", e)
+                Log.e(TAG, "loadEventsForUserReviewScreen error", e)
                 _error.value = NetworkUtils.getErrorMessage(e)
             } finally {
                 _isLoading.value = false

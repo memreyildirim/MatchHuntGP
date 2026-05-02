@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +32,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.ui.viewmodel.CreatePostViewModel
 import com.emreyildirim.matchhuntv1.utils.Sports
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -81,10 +83,10 @@ fun CreatePostScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Yeni Gönderi", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.create_post_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -117,7 +119,7 @@ fun CreatePostScreen(
                                 .data(selectedImageUri)
                                 .crossfade(true)
                                 .build(),
-                            contentDescription = "Seçilen Resim",
+                            contentDescription = stringResource(R.string.cd_selected_image),
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
@@ -131,7 +133,7 @@ fun CreatePostScreen(
                         ) {
                             Icon(
                                 Icons.Default.Edit,
-                                contentDescription = "Değiştir",
+                                contentDescription = stringResource(R.string.cd_change_image),
                                 modifier = Modifier.padding(8.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -148,7 +150,7 @@ fun CreatePostScreen(
                             Icon(Icons.Default.AddPhotoAlternate, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(32.dp))
                         }
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Bir fotoğraf ekleyin", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.create_post_add_photo), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -156,7 +158,7 @@ fun CreatePostScreen(
             // --- Updated Sport Selection ---
             var expanded by remember { mutableStateOf(false) }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Spor Türü", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.create_post_sport_type), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = it }
@@ -165,7 +167,7 @@ fun CreatePostScreen(
                         value = selectedSportType.replaceFirstChar { it.uppercase() },
                         onValueChange = {},
                         readOnly = true,
-                        placeholder = { Text("Bir spor dalı seçin") },
+                        placeholder = { Text(stringResource(R.string.create_post_pick_sport_hint)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         leadingIcon = {
                             val info = Sports.getSportInfo(selectedSportType)
@@ -223,16 +225,20 @@ fun CreatePostScreen(
 
             // --- Description ---
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Açıklama", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.create_post_description_title), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 OutlinedTextField(
                     value = description,
                     onValueChange = { if (it.length <= 250) description = it },
-                    placeholder = { Text("Neler oluyor?...") },
+                    placeholder = { Text(stringResource(R.string.create_post_description_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 4,
                     shape = RoundedCornerShape(16.dp),
                     supportingText = {
-                        Text("${description.length}/250", modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                        Text(
+                            stringResource(R.string.create_post_description_counter, description.length),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End
+                        )
                     }
                 )
             }
@@ -255,7 +261,7 @@ fun CreatePostScreen(
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text("Paylaş", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(stringResource(R.string.create_post_publish), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }
@@ -271,7 +277,7 @@ fun CreatePostScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Resim Kaynağı Seçin", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.create_post_source_dialog_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Surface(
                         modifier = Modifier.weight(1f),
@@ -285,7 +291,7 @@ fun CreatePostScreen(
                         Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.PhotoLibrary, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Galeri")
+                            Text(stringResource(R.string.create_post_source_gallery))
                         }
                     }
                     Surface(
@@ -308,7 +314,7 @@ fun CreatePostScreen(
                         Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.CameraAlt, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Kamera")
+                            Text(stringResource(R.string.create_post_source_camera))
                         }
                     }
                 }

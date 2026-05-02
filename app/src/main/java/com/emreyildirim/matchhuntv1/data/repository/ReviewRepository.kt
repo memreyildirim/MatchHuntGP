@@ -1,5 +1,7 @@
 package com.emreyildirim.matchhuntv1.data.repository
 
+import android.util.Log
+import com.emreyildirim.matchhuntv1.BuildConfig
 import com.emreyildirim.matchhuntv1.data.model.Review
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
@@ -10,6 +12,7 @@ import java.util.Locale
 import com.google.firebase.firestore.Query
 
 class ReviewRepository {
+    private val tag = "ReviewRepository"
     private val db = FirebaseFirestore.getInstance()
     private val reviewsCollection = db.collection("reviews")
     private val usersCollection = db.collection("users")
@@ -28,8 +31,7 @@ class ReviewRepository {
             
             Result.success(Unit)
         } catch (e: Exception) {
-            println("Error creating review: ${e.message}")
-            e.printStackTrace()
+            if (BuildConfig.DEBUG) Log.e(tag, "Error creating review", e)
             Result.failure(e)
         }
     }
@@ -71,7 +73,7 @@ class ReviewRepository {
 
             sortedReviews
         } catch (e: Exception) {
-            println("Error getting user reviews: ${e.message}")
+            if (BuildConfig.DEBUG) Log.w(tag, "Error getting user reviews: ${e.message}")
             emptyList()
         }
     }
@@ -114,8 +116,7 @@ class ReviewRepository {
                 )
                 .await()
         } catch (e: Exception) {
-            println("Error updating user ratings: ${e.message}")
-            e.printStackTrace()
+            if (BuildConfig.DEBUG) Log.e(tag, "Error updating user ratings", e)
         }
     }
 
@@ -162,8 +163,7 @@ class ReviewRepository {
                 )
             )
         } catch (e: Exception) {
-            println("Error getting user ratings: ${e.message}")
-            e.printStackTrace()
+            if (BuildConfig.DEBUG) Log.e(tag, "Error getting user ratings", e)
             Result.failure(e)
         }
     }
@@ -216,8 +216,7 @@ class ReviewRepository {
 
             Result.success(Pair(ratings, reviews.size))
         } catch (e: Exception) {
-            println("Error getting user ratings and count: ${e.message}")
-            e.printStackTrace()
+            if (BuildConfig.DEBUG) Log.e(tag, "Error getting user ratings and count", e)
             Result.failure(e)
         }
     }

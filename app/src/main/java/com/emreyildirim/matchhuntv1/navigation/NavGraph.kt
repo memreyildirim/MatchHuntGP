@@ -5,6 +5,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -201,7 +202,8 @@ fun AppNavigation() {
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getString("eventId") ?: return@composable
             val viewModel: EventViewModel = viewModel()
-            val event = viewModel.events.value.find { it.id == eventId }
+            val events = viewModel.events.collectAsState().value
+            val event = events.find { it.id == eventId }
 
             if (event != null) {
                 EditMyEventScreen(

@@ -19,7 +19,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -51,6 +53,8 @@ fun ProfileRatingScreen(
     val reviewSubmitted by viewModel.reviewSubmitted.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val reviewSavedText = stringResource(R.string.profile_rating_snackbar_saved)
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
 
@@ -82,7 +86,7 @@ fun ProfileRatingScreen(
 
     LaunchedEffect(reviewSubmitted) {
         if (reviewSubmitted) {
-            snackbarHostState.showSnackbar("Değerlendirmeniz kaydedildi.")
+            snackbarHostState.showSnackbar(reviewSavedText)
             onNavigateBack()
         }
     }
@@ -92,14 +96,14 @@ fun ProfileRatingScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = if (participantId != null) "Katılımcıyı Puanla" else "Düzenleyeni Puanla",
+                        text = if (participantId != null) stringResource(R.string.profile_rating_title_participant) else stringResource(R.string.profile_rating_title_organizer),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
@@ -148,7 +152,7 @@ fun ProfileRatingScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = userProfile?.username ?: "Yükleniyor...",
+                            text = userProfile?.username ?: stringResource(R.string.loading),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -176,7 +180,7 @@ fun ProfileRatingScreen(
 
                 // --- PUANLAMA ALANI ---
                 RatingSectionCard(
-                    title = "Beceri & Yetenek",
+                    title = stringResource(R.string.profile_rating_category_skill),
                     rating = skillRating,
                     onRatingChanged = { skillRating = it }
                 )
@@ -184,7 +188,7 @@ fun ProfileRatingScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 RatingSectionCard(
-                    title = "Davranış & Saygı",
+                    title = stringResource(R.string.profile_rating_category_behavior),
                     rating = behaviorRating,
                     onRatingChanged = { behaviorRating = it }
                 )
@@ -192,7 +196,7 @@ fun ProfileRatingScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 RatingSectionCard(
-                    title = "Uyum & Takım İletişimi",
+                    title = stringResource(R.string.profile_rating_category_team),
                     rating = teamRating,
                     onRatingChanged = { teamRating = it }
                 )
@@ -203,7 +207,7 @@ fun ProfileRatingScreen(
                 OutlinedTextField(
                     value = comment,
                     onValueChange = { comment = it },
-                    label = { Text("Yorumunuz (İsteğe bağlı)") },
+                    label = { Text(stringResource(R.string.profile_rating_comment_label)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(2.dp, RoundedCornerShape(16.dp)),
@@ -236,7 +240,7 @@ fun ProfileRatingScreen(
                     if (isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
                     } else {
-                        Text("Değerlendirmeyi Gönder", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.profile_rating_submit), style = MaterialTheme.typography.titleMedium)
                     }
                 }
 

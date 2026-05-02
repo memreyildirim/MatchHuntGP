@@ -2,6 +2,7 @@ package com.emreyildirim.matchhuntv1.data.repository
 
 import android.net.Uri
 import android.util.Log
+import com.emreyildirim.matchhuntv1.BuildConfig
 import com.emreyildirim.matchhuntv1.data.model.Comment
 import com.emreyildirim.matchhuntv1.data.model.Post
 import com.google.firebase.firestore.FirebaseFirestore
@@ -34,10 +35,10 @@ class PostRepository {
             val imageRef = storageRef.child("$postId.jpg")
             
             // Upload image to Firebase Storage
-            Log.d("PostRepository", "Uploading image to Storage...")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Uploading image to Storage...")
             imageRef.putFile(imageUri).await()
             val imageUrl = imageRef.downloadUrl.await().toString()
-            Log.d("PostRepository", "Image uploaded successfully. URL: $imageUrl")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Image uploaded successfully")
 
             // Create post object
             val post = Post(
@@ -51,9 +52,9 @@ class PostRepository {
             )
 
             // Save post to Firestore
-            Log.d("PostRepository", "Saving post to Firestore...")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Saving post to Firestore...")
             postsCollection.document(postId).set(post).await()
-            Log.d("PostRepository", "Post saved successfully to Firestore")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Post saved successfully to Firestore")
             
             Result.success(post)
         } catch (e: Exception) {
@@ -104,7 +105,7 @@ class PostRepository {
     // Pagination ile postları getiren yeni fonksiyon
     suspend fun getPostsPaginated(lastVisiblePost: Post? = null): Result<Pair<List<Post>, Boolean>> {
         return try {
-            Log.d("PostRepository", "Fetching paginated posts from Firestore...")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Fetching paginated posts from Firestore...")
             
             var query = postsCollection
                 .orderBy("createdAt", Query.Direction.DESCENDING)
@@ -124,7 +125,7 @@ class PostRepository {
             // Daha fazla post olup olmadığını kontrol et
             val hasMore = posts.size >= pageSize
             
-            Log.d("PostRepository", "Successfully fetched ${posts.size} posts, hasMore: $hasMore")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Fetched ${posts.size} posts, hasMore: $hasMore")
             Result.success(Pair(posts, hasMore))
         } catch (e: Exception) {
             Log.e("PostRepository", "Error fetching paginated posts", e)
@@ -134,7 +135,7 @@ class PostRepository {
 
     suspend fun likePost(postId: String, userId: String): Result<Unit> {
         return try {
-            Log.d("PostRepository", "Updating like for post $postId by user $userId")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Updating like for post=$postId")
             val postRef = postsCollection.document(postId)
             val post = postRef.get().await().toObject(Post::class.java)
                 ?: throw Exception("Post not found")
@@ -152,7 +153,7 @@ class PostRepository {
                     "likedBy" to newLikedBy
                 )
             ).await()
-            Log.d("PostRepository", "Like updated successfully")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Like updated successfully")
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("PostRepository", "Error updating like", e)
@@ -192,7 +193,7 @@ class PostRepository {
 
     suspend fun getUserPosts(userId: String): List<Post> {
         return try {
-            Log.d("PostRepository", "Fetching posts for user $userId")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Fetching posts for current user")
             val snapshot = postsCollection
                 .whereEqualTo("userId", userId)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
@@ -203,7 +204,7 @@ class PostRepository {
                 val post = doc.toObject(Post::class.java)
                 post?.copy(id = doc.id)
             }
-            Log.d("PostRepository", "Successfully fetched ${posts.size} posts for user")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Fetched ${posts.size} posts for current user")
             posts
         } catch (e: Exception) {
             Log.e("PostRepository", "Error fetching user posts", e)
@@ -213,7 +214,7 @@ class PostRepository {
 
     suspend fun getUserPostsLimited(userId: String, limit: Int = 6): List<Post> {
         return try {
-            Log.d("PostRepository", "Fetching limited posts ($limit) for user $userId")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Fetching limited posts ($limit) for current user")
             val snapshot = postsCollection
                 .whereEqualTo("userId", userId)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
@@ -225,7 +226,7 @@ class PostRepository {
                 val post = doc.toObject(Post::class.java)
                 post?.copy(id = doc.id)
             }
-            Log.d("PostRepository", "Successfully fetched ${posts.size} limited posts for user")
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Fetched ${posts.size} limited posts for current user")
             posts
         } catch (e: Exception) {
             Log.e("PostRepository", "Error fetching limited user posts", e)

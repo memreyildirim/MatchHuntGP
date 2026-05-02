@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -77,7 +78,7 @@ fun EmailVerificationScreen(navController: NavController) {
             // Logo
             Image(
                 painter = painterResource(id = R.drawable.logolastcircle),
-                contentDescription = "MatchHunt Logo",
+                contentDescription = stringResource(R.string.cd_matchhunt_logo),
                 modifier = Modifier.size(120.dp)
             )
             
@@ -85,7 +86,7 @@ fun EmailVerificationScreen(navController: NavController) {
             
             // Title
             Text(
-                text = "Validatiton Email",
+                text = stringResource(R.string.email_ver_title),
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -93,7 +94,7 @@ fun EmailVerificationScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "Click on the verification link sent to your email address. Once the verification process is complete, you will be automatically redirected.",
+                text = stringResource(R.string.email_ver_body),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -134,7 +135,7 @@ fun EmailVerificationScreen(navController: NavController) {
                     )
                 } else {
                     Text(
-                        text = if (isResending) "Sent again ($countdown)" else "Sent again validation email",
+                        text = if (isResending) stringResource(R.string.email_ver_resending, countdown) else stringResource(R.string.email_ver_resend),
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
@@ -154,7 +155,7 @@ fun EmailVerificationScreen(navController: NavController) {
                     contentColor = MaterialTheme.colorScheme.primary
                 )
             ) {
-                Text("Back to Login")
+                Text(stringResource(R.string.email_ver_back_to_login))
             }
         }
     }

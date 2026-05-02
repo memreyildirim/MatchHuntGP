@@ -18,23 +18,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import com.emreyildirim.matchhuntv1.BuildConfig
 import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
+import com.emreyildirim.matchhuntv1.ui.theme.Obsidian
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
+import com.emreyildirim.matchhuntv1.utils.LocationUtils
 import com.emreyildirim.matchhuntv1.utils.Sports
 import com.google.firebase.firestore.FirebaseFirestore
 import com.emreyildirim.matchhuntv1.ui.components.LocationText
 import com.google.android.gms.maps.model.LatLng
-import com.emreyildirim.matchhuntv1.utils.Config
 import android.widget.Toast
 import androidx.compose.ui.graphics.Color
 
+private const val SPORT_FILTER_ALL = "All"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +48,9 @@ fun FindEventScreen(
     onNavigateToProfile: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var selectedSportType by remember { mutableStateOf("All") }
+    var selectedSportType by remember { mutableStateOf(SPORT_FILTER_ALL) }
+    val displayedSportFilter =
+        if (selectedSportType == SPORT_FILTER_ALL) stringResource(R.string.find_event_filter_all) else selectedSportType
     var expanded by remember { mutableStateOf(false) }
     var selectedEventId by remember { mutableStateOf<String?>(null) }
     val sheetState = rememberModalBottomSheetState()
@@ -104,7 +110,7 @@ fun FindEventScreen(
                     searchQuery = it
                     viewModel.searchEvents(it, selectedSportType)
                 },
-                label = { Text("Search Event") },
+                label = { Text(stringResource(R.string.find_event_search_label)) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Obsidian,
@@ -120,10 +126,10 @@ fun FindEventScreen(
                 onExpandedChange = { expanded = it }
             ) {
                 OutlinedTextField(
-                    value = selectedSportType,
+                    value = displayedSportFilter,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Sport Type") },
+                    label = { Text(stringResource(R.string.find_event_sport_type)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -142,11 +148,11 @@ fun FindEventScreen(
                     onDismissRequest = { expanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("All") },
+                        text = { Text(stringResource(R.string.find_event_filter_all)) },
                         onClick = {
-                            selectedSportType = "All"
+                            selectedSportType = SPORT_FILTER_ALL
                             expanded = false
-                            viewModel.searchEvents(searchQuery, "All")
+                            viewModel.searchEvents(searchQuery, SPORT_FILTER_ALL)
                         }
                     )
                     Sports.allSports.forEach { sport ->
@@ -162,16 +168,49 @@ fun FindEventScreen(
                 }
             }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 120.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(events) { event ->
-                    EventCard(
-                        event = event,
-                        onClick = { selectedEventId = event.id }
-                    )
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Obsidian)
+                }
+            } else if (events.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(R.string.find_event_empty_title),
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 120.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(events) { event ->
+                        EventCard(
+                            event = event,
+                            onClick = { selectedEventId = event.id }
+                        )
+                    }
                 }
             }
         }
@@ -322,7 +361,11 @@ fun EventCard(
                             MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "${event.participants.size}/${event.maxParticipants}",
+                        text = stringResource(
+                            R.string.find_event_participate_summary,
+                            event.participants.size,
+                            event.maxParticipants
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (isFull)
                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -335,7 +378,7 @@ fun EventCard(
             if (isFull) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Quota Full",
+                    text = stringResource(R.string.find_event_quota_full),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.align(Alignment.End)
@@ -401,7 +444,7 @@ fun EventDetailsSheet(
                     if (creatorProfile?.profileImageUrl?.isNotEmpty() == true) {
                         AsyncImage(
                             model = creatorProfile?.profileImageUrl,
-                            contentDescription = "Profile Photo",
+                            contentDescription = stringResource(R.string.find_event_cd_profile_photo),
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape),
@@ -430,7 +473,7 @@ fun EventDetailsSheet(
                 TextButton(
                     onClick = { onNavigateToProfile(event.createdBy) }
                 ) {
-                    Text("Display Profile")
+                    Text(stringResource(R.string.find_event_display_profile))
                 }
             }
 
@@ -488,7 +531,8 @@ fun EventDetailsSheet(
                     )
                     LocationText(
                         latLng = LatLng(event.latitude, event.longitude),
-                        apiKey = Config.MAPS_API_KEY,
+                        apiKey = BuildConfig.MAPS_API_KEY,
+                        format = LocationUtils.LocationDisplayFormat.MEDIUM,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -508,7 +552,11 @@ fun EventDetailsSheet(
                             MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "${event.participants.size}/${event.maxParticipants} participate",
+                        text = stringResource(
+                            R.string.find_event_participate_summary,
+                            event.participants.size,
+                            event.maxParticipants
+                        ),
                         style = MaterialTheme.typography.bodyLarge,
                         color = if (isFull)
                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -522,7 +570,7 @@ fun EventDetailsSheet(
 
             if (isFull) {
                 Text(
-                    text = "Quota Full",
+                    text = stringResource(R.string.find_event_quota_full),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -536,7 +584,7 @@ fun EventDetailsSheet(
                         .padding(vertical = 8.dp),
                     enabled = !event.participants.contains("currentUserId")
                 ) {
-                    Text("Send Request/Cancel Request")
+                    Text(stringResource(R.string.find_event_send_request))
                 }
             }
         }

@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -40,6 +41,9 @@ import com.emreyildirim.matchhuntv1.utils.Sports
 import com.emreyildirim.matchhuntv1.utils.NetworkUtils
 import com.emreyildirim.matchhuntv1.utils.withNetworkTimeout
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
+import com.emreyildirim.matchhuntv1.ui.theme.BrandVolt
+import com.emreyildirim.matchhuntv1.ui.theme.Obsidian
+import com.emreyildirim.matchhuntv1.ui.theme.SoftGray
 import com.emreyildirim.matchhuntv1.ui.viewmodel.AuthViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
@@ -52,6 +56,10 @@ fun EditProfileScreen(navController: NavController) {
     val userRepository = remember { UserRepository() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val networkUnavailableShortText = stringResource(R.string.error_network_unavailable_short)
+    val fillRequiredFieldsText = stringResource(R.string.edit_profile_fill_required_fields)
+    val networkUnavailableDetailText = stringResource(R.string.error_network_unavailable_detail)
+    val profileUpdatedText = stringResource(R.string.toast_profile_updated)
 
     // State Variables
     var username by remember { mutableStateOf("") }
@@ -73,7 +81,7 @@ fun EditProfileScreen(navController: NavController) {
             try {
                 // Network kontrolü
                 if (!NetworkUtils.isNetworkAvailable(context)) {
-                    errorMessage = "İnternet bağlantısı bulunamadı"
+                    errorMessage = networkUnavailableShortText
                     return@LaunchedEffect
                 }
                 
@@ -123,7 +131,7 @@ fun EditProfileScreen(navController: NavController) {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "PROFILI DÜZENLE",
+                        text = stringResource(R.string.edit_profile_title),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Black,
                             letterSpacing = 2.sp,
@@ -136,7 +144,7 @@ fun EditProfileScreen(navController: NavController) {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.cd_back),
                             tint = Obsidian
                         )
                     }
@@ -177,7 +185,7 @@ fun EditProfileScreen(navController: NavController) {
                         } else {
                             painterResource(id = R.drawable.ic_profile_placeholder)
                         },
-                        contentDescription = "Profil Resmi",
+                        contentDescription = stringResource(R.string.cd_profile_image),
                         modifier = Modifier.fillMaxSize().clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
@@ -195,7 +203,7 @@ fun EditProfileScreen(navController: NavController) {
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Fotoğraf Ekle",
+                        contentDescription = stringResource(R.string.cd_add_photo),
                         tint = BrandVolt,
                         modifier = Modifier.size(20.dp)
                     )
@@ -209,7 +217,7 @@ fun EditProfileScreen(navController: NavController) {
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("Kullanıcı Adı") },
+                    label = { Text(stringResource(R.string.profile_field_username)) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -226,7 +234,7 @@ fun EditProfileScreen(navController: NavController) {
                 OutlinedTextField(
                     value = age,
                     onValueChange = { age = it },
-                    label = { Text("Yaş") },
+                    label = { Text(stringResource(R.string.profile_field_age)) },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     shape = RoundedCornerShape(16.dp),
@@ -249,7 +257,7 @@ fun EditProfileScreen(navController: NavController) {
                         value = selectedCity,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Şehir") },
+                        label = { Text(stringResource(R.string.profile_field_city)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCityDropdownExpanded) },
                         leadingIcon = { Icon(Icons.Default.LocationOn, null, tint = Obsidian) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
@@ -284,7 +292,7 @@ fun EditProfileScreen(navController: NavController) {
                 OutlinedTextField(
                     value = about,
                     onValueChange = { about = it },
-                    label = { Text("Hakkımda (Opsiyonel)") },
+                    label = { Text(stringResource(R.string.profile_field_about_optional)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
                     maxLines = 5,
@@ -307,7 +315,7 @@ fun EditProfileScreen(navController: NavController) {
                 Icon(Icons.Default.Interests, null, modifier = Modifier.size(18.dp), tint = Obsidian)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "İLGİ ALANLARI",
+                    text = stringResource(R.string.edit_profile_interests_header),
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.sp,
@@ -374,7 +382,7 @@ fun EditProfileScreen(navController: NavController) {
             Button(
                 onClick = {
                     if (username.isBlank() || age.isBlank() || selectedCity.isBlank() || selectedSports.isEmpty()) {
-                        errorMessage = "Lütfen tüm zorunlu alanları doldurun."
+                        errorMessage = fillRequiredFieldsText
                         return@Button
                     }
 
@@ -385,7 +393,7 @@ fun EditProfileScreen(navController: NavController) {
                             
                             // Network kontrolü
                             if (!NetworkUtils.isNetworkAvailable(context)) {
-                                errorMessage = "İnternet bağlantısı bulunamadı. Lütfen bağlantınızı kontrol edin."
+                                errorMessage = networkUnavailableDetailText
                                 isLoading = false
                                 return@launch
                             }
@@ -429,7 +437,7 @@ fun EditProfileScreen(navController: NavController) {
                                 }
                             }
 
-                            Toast.makeText(context, "Profil güncellendi", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, profileUpdatedText, Toast.LENGTH_SHORT).show()
                             navController.previousBackStackEntry?.savedStateHandle?.set("profileUpdated", true)
                             navController.navigateUp()
                         } catch (e: Exception) {
@@ -455,7 +463,7 @@ fun EditProfileScreen(navController: NavController) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = BrandVolt)
                 } else {
                     Text(
-                        text = "DEĞIŞIKLIKLERI KAYDET",
+                        text = stringResource(R.string.edit_profile_save_changes),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.sp

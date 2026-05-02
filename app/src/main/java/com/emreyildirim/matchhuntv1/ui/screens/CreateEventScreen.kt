@@ -18,12 +18,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.unit.dp
 import com.emreyildirim.matchhuntv1.R
+import com.emreyildirim.matchhuntv1.ui.theme.Obsidian
 import com.emreyildirim.matchhuntv1.ui.components.LocationPicker
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
 import com.emreyildirim.matchhuntv1.utils.Sports
@@ -73,6 +76,10 @@ fun CreateEventScreen(
     val eventCreated by viewModel.eventCreated.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val pastDateText = stringResource(R.string.create_event_err_past_date)
+    val pastDateTimeText = stringResource(R.string.create_event_err_past_datetime)
+    val chooseLocationText = stringResource(R.string.create_event_err_choose_location)
+    val createEventButtonCd = stringResource(R.string.cd_create_event_button)
     
     // Sport Type Dropdown
     var expanded by remember { mutableStateOf(false) }
@@ -82,13 +89,15 @@ fun CreateEventScreen(
     
     // Time Picker Dialog
     var showTimePicker by remember { mutableStateOf(false) }
-    
+
+    val successText = stringResource(R.string.create_event_success_toast)
+
     // Event created effect
     LaunchedEffect(eventCreated) {
         if (eventCreated) {
             android.widget.Toast.makeText(
                 context,
-                "Event created successfully!",
+                successText,
                 android.widget.Toast.LENGTH_SHORT
             ).show()
             
@@ -140,7 +149,7 @@ fun CreateEventScreen(
                             if (calendar.time.before(currentCalendar.time)) {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "You cannot select a past date!",
+                                    pastDateText,
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             } else {
@@ -151,14 +160,14 @@ fun CreateEventScreen(
                         }
                     }
                 ) {
-                    Text("Okey")
+                    Text(stringResource(R.string.ok))
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = { showDatePicker = false }
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         ) {
@@ -172,7 +181,7 @@ fun CreateEventScreen(
         
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
-            title = { Text("Select Time") },
+            title = { Text(stringResource(R.string.create_event_pick_time_title)) },
             text = {
                 TimePicker(state = timePickerState)
             },
@@ -185,14 +194,14 @@ fun CreateEventScreen(
                         showTimePicker = false
                     }
                 ) {
-                    Text("Okey")
+                    Text(stringResource(R.string.ok))
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = { showTimePicker = false }
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -202,7 +211,7 @@ fun CreateEventScreen(
     if (showLocationPicker) {
         AlertDialog(
             onDismissRequest = { showLocationPicker = false },
-            title = { Text("Choose Location") },
+            title = { Text(stringResource(R.string.create_event_pick_location_title)) },
             text = {
                 LocationPicker(
                     onLocationSelected = { location ->
@@ -216,7 +225,7 @@ fun CreateEventScreen(
                 TextButton(
                     onClick = { showLocationPicker = false }
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -236,7 +245,7 @@ fun CreateEventScreen(
             verticalArrangement = Arrangement.spacedBy(13.dp)
         ) {
             Text(
-                text = "Create New Event",
+                text = stringResource(R.string.create_event_heading),
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -245,7 +254,7 @@ fun CreateEventScreen(
             OutlinedTextField(
                 value = eventTitle,
                 onValueChange = { eventTitle = it },
-                label = { Text("Event Title") },
+                label = { Text(stringResource(R.string.create_event_field_title)) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -266,7 +275,7 @@ fun CreateEventScreen(
                     value = selectedSportLabel,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Event Type") },
+                    label = { Text(stringResource(R.string.create_event_field_type)) },
                     leadingIcon = {
                         val sportInfo = Sports.getSportInfo(selectedSportKey)
                         if (sportInfo != null) {
@@ -332,7 +341,7 @@ fun CreateEventScreen(
             OutlinedTextField(
                 value = eventDescription,
                 onValueChange = { eventDescription = it },
-                label = { Text("Event Description") },
+                label = { Text(stringResource(R.string.create_event_field_description)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
                 shape = MaterialTheme.shapes.medium,
@@ -354,14 +363,14 @@ fun CreateEventScreen(
                 OutlinedTextField(
                     value = eventDate,
                     onValueChange = { },
-                    label = { Text("Date") },
+                    label = { Text(stringResource(R.string.create_event_field_date)) },
                     modifier = Modifier.weight(1f),
                     readOnly = true,
                     trailingIcon = {
                         IconButton(onClick = { showDatePicker = true }) {
                             Icon(
                                 imageVector = Icons.Default.DateRange,
-                                contentDescription = "Choose Date",
+                                contentDescription = stringResource(R.string.cd_choose_date),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -380,21 +389,21 @@ fun CreateEventScreen(
                 OutlinedTextField(
                     value = eventTime,
                     onValueChange = { },
-                    label = { Text("Time") },
+                    label = { Text(stringResource(R.string.create_event_field_time)) },
                     modifier = Modifier.weight(1f),
                     readOnly = true,
                     trailingIcon = {
                         IconButton(onClick = { showTimePicker = true }) {
                             Icon(
                                 imageVector = Icons.Default.Schedule,
-                                contentDescription = "Choose Time",
+                                contentDescription = stringResource(R.string.cd_choose_time),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     },
                     shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Obsidian,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = Color.LightGray,
                         focusedLabelColor = Obsidian,
                         focusedContainerColor = Color.White,
@@ -407,14 +416,14 @@ fun CreateEventScreen(
             OutlinedTextField(
                 value = eventLocation,
                 onValueChange = { },
-                label = { Text("Location") },
+                label = { Text(stringResource(R.string.create_event_field_location)) },
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = true,
                 trailingIcon = {
                     IconButton(onClick = { showLocationPicker = true }) {
                         Icon(
                             imageVector = Icons.Default.LocationOn,
-                            contentDescription = "Choose Location",
+                            contentDescription = stringResource(R.string.cd_choose_location),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -437,7 +446,7 @@ fun CreateEventScreen(
                         maxParticipants = newValue
                     }
                 },
-                label = { Text("Maximum Number of Participants") },
+                label = { Text(stringResource(R.string.create_event_field_max_participants)) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = MaterialTheme.shapes.medium,
@@ -469,13 +478,13 @@ fun CreateEventScreen(
                     if (selectedDateTime?.before(currentDateTime) == true) {
                         android.widget.Toast.makeText(
                             context,
-                            "You cannot select a past date and time!",
+                            pastDateTimeText,
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     } else if (selectedLocation == null) {
                         android.widget.Toast.makeText(
                             context,
-                            "Please choose a location!",
+                            chooseLocationText,
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     } else {
@@ -494,6 +503,7 @@ fun CreateEventScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .semantics { contentDescription = createEventButtonCd }
                     .height(56.dp),
                 enabled = eventTitle.isNotBlank() && 
                          selectedSportKey.isNotBlank() &&
@@ -516,7 +526,7 @@ fun CreateEventScreen(
                     )
                 } else {
                     Text(
-                        "Create Event",
+                        stringResource(R.string.create_event_submit),
                         style = MaterialTheme.typography.titleMedium
                     )
                 }

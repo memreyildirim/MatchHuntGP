@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.emreyildirim.matchhuntv1.BuildConfig
 import com.emreyildirim.matchhuntv1.data.model.Message
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.ui.screens.Conversation
@@ -93,7 +94,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 val currentConversations = _conversations.value.toMutableList()
                 _conversations.value = currentConversations.filter { it.userId != userId }
                 
-                Log.d(TAG, "Conversation hidden: $userId")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Conversation hidden")
             } catch (e: Exception) {
                 Log.e(TAG, "Error hiding conversation", e)
             }
@@ -114,7 +115,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 // Konuşmaları yeniden yükle (gizlenen artık görünecek)
                 loadConversations()
                 
-                Log.d(TAG, "Conversation unhidden: $userId")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Conversation unhidden")
             } catch (e: Exception) {
                 Log.e(TAG, "Error unhiding conversation", e)
             }
@@ -140,7 +141,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 if (currentChatId == chatId) {
                     val currentMessages = _messages.value.toMutableList()
                     _messages.value = currentMessages + message
-                    Log.d(TAG, "Message added optimistically to UI: ${message.id}")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Message added optimistically")
                 }
 
                 // Mesajı Firestore'a kaydet
@@ -155,10 +156,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 updateConversationList(message)
             } catch (e: Exception) {
                 _error.value = NetworkUtils.getErrorMessage(e)
-                e.printStackTrace()
-                
-                // Hata durumunda optimistic update'i geri al (isteğe bağlı)
-                // Şimdilik listener zaten gerçek mesajı getirecek, bu yüzden gerek yok
+                if (BuildConfig.DEBUG) Log.e(TAG, "sendMessage error", e)
             }
         }
     }
@@ -170,23 +168,20 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
     fun loadInitialMessages(targetUserId: String) {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "loadInitialMessages() called for userId=$targetUserId")
+                if (BuildConfig.DEBUG) Log.d(TAG, "loadInitialMessages() called")
 
                 val currentUserId = auth.currentUser?.uid ?: return@launch
                 val chatId = ChatUtils.getChatId(currentUserId, targetUserId)
                 
                 // Eğer aynı chat zaten yüklüyse ve hafızada mesaj varsa, tekrar Firestore'a gitme
                 if (currentChatId == chatId && _messages.value.isNotEmpty()) {
-                    Log.d(
-                        TAG,
-                        "loadInitialMessages() skipped: messages already loaded in memory for chatId=$chatId"
-                    )
+                    if (BuildConfig.DEBUG) Log.d(TAG, "loadInitialMessages() skipped: already loaded")
                     return@launch
                 }
 
                 // FARKLI BİR CHAT'E GEÇİLDİYSE STATE'İ TEMİZLE
                 if (currentChatId != null && currentChatId != chatId) {
-                    Log.d(TAG, "Chat changed from $currentChatId to $chatId, clearing messages")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Chat changed, clearing cached messages")
                     _messages.value = emptyList()
                     // Eski listener'ı durdur
                     stopMessageListener()
@@ -219,11 +214,13 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 // Her iki query'yi paralel olarak çalıştır
                 val sentSnapshot = withNetworkTimeout { sentMessagesQuery.get().await() }
                 val receivedSnapshot = withNetworkTimeout { receivedMessagesQuery.get().await() }
-                
-                Log.d(
-                    TAG,
-                    "loadInitialMessages() Firestore returned ${sentSnapshot.size()} sent + ${receivedSnapshot.size()} received docs"
-                )
+
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        TAG,
+                        "loadInitialMessages() returned ${sentSnapshot.size()} sent + ${receivedSnapshot.size()} received"
+                    )
+                }
 
                 // Tüm mesajları birleştir ve sırala
                 val allMessages = (sentSnapshot.documents + receivedSnapshot.documents)
@@ -233,12 +230,9 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                     .distinctBy { it.id } // Duplicate kontrolü
                     .sortedByDescending { it.timestamp }
                     .take(pageSize) // En son pageSize kadar mesaj al
-                
+
                 val messages = allMessages
-                Log.d(
-                    TAG,
-                    "loadInitialMessages() mapped ${messages.size} messages, first=${messages.firstOrNull()?.timestamp}, last=${messages.lastOrNull()?.timestamp}"
-                )
+                if (BuildConfig.DEBUG) Log.d(TAG, "loadInitialMessages() mapped ${messages.size} messages")
 
                 // DESC ile aldık, UI'de eski → yeni göstermek için ters çeviriyoruz
                 _messages.value = messages.reversed()
@@ -250,14 +244,10 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                     receivedSnapshot.documents.lastOrNull()
                 }
                 hasMoreMessages = (sentSnapshot.size() >= pageSize || receivedSnapshot.size() >= pageSize)
-                Log.d(
-                    TAG,
-                    "loadInitialMessages() lastVisibleMessageSnapshot=${lastVisibleMessageSnapshot?.id}, hasMoreMessages=$hasMoreMessages"
-                )
+                if (BuildConfig.DEBUG) Log.d(TAG, "loadInitialMessages() hasMoreMessages=$hasMoreMessages")
             } catch (e: Exception) {
                 _error.value = NetworkUtils.getErrorMessage(e)
-                e.printStackTrace()
-                Log.e(TAG, "loadInitialMessages() error", e)
+                if (BuildConfig.DEBUG) Log.e(TAG, "loadInitialMessages() error", e)
             } finally {
                 _isLoading.value = false
             }
@@ -270,19 +260,18 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
     fun loadMoreMessages() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "loadMoreMessages() called, hasMoreMessages=$hasMoreMessages")
+                if (BuildConfig.DEBUG) Log.d(TAG, "loadMoreMessages() called, hasMoreMessages=$hasMoreMessages")
                 if (!hasMoreMessages) {
-                    Log.d(TAG, "loadMoreMessages() aborted: hasMoreMessages is false")
                     return@launch
                 }
                 val chatId = currentChatId ?: run {
-                    Log.w(TAG, "loadMoreMessages() aborted: currentChatId is null")
+                    if (BuildConfig.DEBUG) Log.w(TAG, "loadMoreMessages() aborted: chat id is null")
                     return@launch
                 }
                 // Mevcut mesajlardan en eski mesajın timestamp'ini kullan
                 val oldestMessage = _messages.value.firstOrNull()
                 if (oldestMessage == null) {
-                    Log.w(TAG, "loadMoreMessages() aborted: no messages in list")
+                    if (BuildConfig.DEBUG) Log.w(TAG, "loadMoreMessages() aborted: no messages in list")
                     hasMoreMessages = false
                     return@launch
                 }
@@ -291,14 +280,11 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
 
                 val currentUserId = auth.currentUser?.uid ?: return@launch
                 val targetUserId = currentTargetUserId ?: run {
-                    Log.w(TAG, "loadMoreMessages() aborted: currentTargetUserId is null")
+                    if (BuildConfig.DEBUG) Log.w(TAG, "loadMoreMessages() aborted: targetUserId is null")
                     return@launch
                 }
 
-                Log.d(
-                    TAG,
-                    "loadMoreMessages() querying for older messages before timestamp=${oldestMessage.timestamp} chatId=$chatId"
-                )
+                if (BuildConfig.DEBUG) Log.d(TAG, "loadMoreMessages() querying older messages")
 
                 // İki ayrı query yap (sent ve received)
                 // Timestamp'e göre filtrele
@@ -319,11 +305,6 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 // Her iki query'yi paralel olarak çalıştır
                 val sentSnapshot = withNetworkTimeout { sentMessagesQuery.get().await() }
                 val receivedSnapshot = withNetworkTimeout { receivedMessagesQuery.get().await() }
-                
-                Log.d(
-                    TAG,
-                    "loadMoreMessages() Firestore returned ${sentSnapshot.size()} sent + ${receivedSnapshot.size()} received older docs"
-                )
 
                 // Tüm mesajları birleştir ve sırala
                 val olderMessages = (sentSnapshot.documents + receivedSnapshot.documents)
@@ -333,40 +314,24 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                     .distinctBy { it.id } // Duplicate kontrolü
                     .sortedByDescending { it.timestamp }
                     .take(pageSize) // En son pageSize kadar mesaj al
-                
-                Log.d(
-                    TAG,
-                    "loadMoreMessages() mapped ${olderMessages.size} older messages"
-                )
+
+                if (BuildConfig.DEBUG) Log.d(TAG, "loadMoreMessages() mapped ${olderMessages.size} older messages")
 
                 if (olderMessages.isEmpty()) {
                     hasMoreMessages = false
-                    Log.d(TAG, "No more messages to load")
                     return@launch
                 }
 
                 // Eski mesajlar listenin başına ekleniyor (UI hala eski → yeni gösterir)
                 val currentMessages = _messages.value.toMutableList()
                 _messages.value = olderMessages.reversed() + currentMessages
-                Log.d(
-                    TAG,
-                    "loadMoreMessages() UI message list size: ${_messages.value.size}"
-                )
 
                 // Pagination için kontrol et
                 hasMoreMessages = (sentSnapshot.size() >= pageSize || receivedSnapshot.size() >= pageSize)
-                Log.d(
-                    TAG,
-                    "loadMoreMessages() hasMoreMessages=$hasMoreMessages"
-                )
-                Log.d(
-                    TAG,
-                    "loadMoreMessages() updated lastVisibleMessageSnapshot=${lastVisibleMessageSnapshot?.id}, hasMoreMessages=$hasMoreMessages"
-                )
+                if (BuildConfig.DEBUG) Log.d(TAG, "loadMoreMessages() hasMoreMessages=$hasMoreMessages")
             } catch (e: Exception) {
                 _error.value = NetworkUtils.getErrorMessage(e)
-                e.printStackTrace()
-                Log.e(TAG, "loadMoreMessages() error", e)
+                if (BuildConfig.DEBUG) Log.e(TAG, "loadMoreMessages() error", e)
             } finally {
                 _isLoading.value = false
             }
@@ -411,7 +376,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                     _conversations.value = currentConversations.sortedByDescending { it.lastMessage?.timestamp }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                if (BuildConfig.DEBUG) Log.e(TAG, "updateConversationList error", e)
             }
         }
     }
@@ -426,7 +391,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 // Gizlenen konuşmaları yükle
                 val hiddenConversations = getHiddenConversations()
                 
-                Log.d(TAG, "Loading conversations, hidden count: ${hiddenConversations.size}")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Loading conversations, hidden count: ${hiddenConversations.size}")
 
                 // Kullanıcının tüm mesajlarını getir
                 val messagesSnapshot = withNetworkTimeout {
@@ -503,12 +468,11 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
 
                 // Konuşmaları son mesaj zamanına göre sırala
                 _conversations.value = conversationsWithUnread.sortedByDescending { it.lastMessage?.timestamp }
-                
-                Log.d(TAG, "Loaded ${_conversations.value.size} visible conversations (${hiddenConversations.size} hidden)")
-                
+
+                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${_conversations.value.size} visible conversations")
             } catch (e: Exception) {
                 _error.value = NetworkUtils.getErrorMessage(e)
-                e.printStackTrace()
+                if (BuildConfig.DEBUG) Log.e(TAG, "loadConversations error", e)
             } finally {
                 _isLoading.value = false
             }
@@ -522,7 +486,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
         
         // Eğer aynı chat için listener zaten varsa, yeni listener ekleme
         if (currentChatId == chatId && messageListenerRegistration != null) {
-            Log.d(TAG, "Listener already active for chatId=$chatId")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Listener already active")
             return
         }
         
@@ -531,7 +495,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
         
         currentChatId = chatId
         currentTargetUserId = targetUserId
-        Log.d(TAG, "Starting message listener for chatId=$chatId, targetUserId=$targetUserId")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Starting message listener")
 
         try {
             // Firestore rules ile uyumlu olması için senderId ve receiverId kullan
@@ -581,11 +545,10 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 }
             }
             
-            Log.d(TAG, "Message listener started successfully for chatId=$chatId")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Message listener started successfully")
         } catch (e: Exception) {
             _error.value = "Mesaj dinleyicisi başlatılırken bir hata oluştu: ${e.message}"
-            Log.e(TAG, "Error starting message listener", e)
-            e.printStackTrace()
+            if (BuildConfig.DEBUG) Log.e(TAG, "Error starting message listener", e)
         }
     }
 
@@ -598,8 +561,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
     ) {
         if (error != null) {
             _error.value = "Mesajlar dinlenirken bir hata oluştu: ${error.message}"
-            Log.e(TAG, "Listener error ($type): ${error.message}")
-            error.printStackTrace()
+            if (BuildConfig.DEBUG) Log.e(TAG, "Listener error ($type)", error)
             return
         }
 
@@ -607,12 +569,12 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
             try {
                 // Chat değişmişse listener'ı görmezden gel
                 if (currentChatId != expectedChatId) {
-                    Log.d(TAG, "Ignoring listener update ($type): currentChatId=$currentChatId, expectedChatId=$expectedChatId")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Ignoring listener update ($type): chat changed")
                     return
                 }
 
                 if (isInitial) {
-                    Log.d(TAG, "Initial snapshot received ($type), ${documents.size()} documents for chatId=$expectedChatId")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Initial snapshot received ($type), ${documents.size()} documents")
                     // İlk snapshot'ı sadece log'la, loadInitialMessages zaten yüklüyor
                     return
                 }
@@ -627,14 +589,12 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                     .filter { message ->
                         // ChatId kontrolü (ekstra güvenlik)
                         val isValid = message.chatId == currentChatId
-                        if (!isValid) {
-                            Log.w(TAG, "Message chatId mismatch: expected=$currentChatId, got=${message.chatId}, messageId=${message.id}")
-                        }
+                        if (!isValid && BuildConfig.DEBUG) Log.w(TAG, "Message chatId mismatch detected")
                         isValid
                     }
 
                 if (newMessages.isNotEmpty()) {
-                    Log.d(TAG, "Listener received ${newMessages.size} new messages ($type) for chatId=$expectedChatId")
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Listener received ${newMessages.size} new messages ($type)")
                     
                     // Duplicate kontrolü
                     val currentMessages = _messages.value.toMutableList()
@@ -643,23 +603,15 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                     
                     if (uniqueNewMessages.isNotEmpty()) {
                         _messages.value = currentMessages + uniqueNewMessages
-                        Log.d(TAG, "✅ Added ${uniqueNewMessages.size} new messages to UI ($type). Total messages: ${_messages.value.size}")
-                    } else {
-                        Log.d(TAG, "All ${newMessages.size} messages were duplicates, skipping ($type)")
-                    }
-                } else {
-                    // DocumentChanges boş olabilir ama documents dolu olabilir (metadata değişikliği)
-                    if (documents.size() > 0 && documentChanges.isEmpty()) {
-                        Log.d(TAG, "Snapshot has ${documents.size()} documents but no ADDED changes (metadata update?) ($type)")
+                        if (BuildConfig.DEBUG) Log.d(TAG, "Added ${uniqueNewMessages.size} new messages ($type)")
                     }
                 }
             } catch (e: Exception) {
                 _error.value = "Mesajlar işlenirken bir hata oluştu: ${e.message}"
-                Log.e(TAG, "Error processing listener snapshot ($type)", e)
-                e.printStackTrace()
+                if (BuildConfig.DEBUG) Log.e(TAG, "Error processing listener snapshot ($type)", e)
             }
         } ?: run {
-            Log.w(TAG, "Listener snapshot is null ($type)")
+            if (BuildConfig.DEBUG) Log.w(TAG, "Listener snapshot is null ($type)")
         }
     }
 
@@ -671,7 +623,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
         sentMessagesListener = null
         receivedMessagesListener = null
         messageListenerRegistration = null
-        Log.d(TAG, "Message listener stopped")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Message listener stopped")
     }
 
     // Konuşma listesi için gerçek zamanlı dinleyici
@@ -691,8 +643,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
                         _error.value = "Konuşmalar dinlenirken bir hata oluştu: ${error.message}"
-                        Log.e(TAG, "Conversation listener error (sent): ${error.message}")
-                        error.printStackTrace()
+                        if (BuildConfig.DEBUG) Log.e(TAG, "Conversation listener error (sent)", error)
                         return@addSnapshotListener
                     }
 
@@ -701,7 +652,6 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                             // İlk snapshot'ı atla (tüm mesajlar zaten yüklü)
                             if (isInitialSnapshotSent) {
                                 isInitialSnapshotSent = false
-                                Log.d(TAG, "Initial snapshot received (sent), ${documents.size()} documents")
                                 return@addSnapshotListener
                             }
                             
@@ -713,12 +663,11 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                                 }
                             
                             if (newMessages.isNotEmpty()) {
-                                Log.d(TAG, "Conversation listener received ${newMessages.size} new sent messages")
+                                if (BuildConfig.DEBUG) Log.d(TAG, "Got ${newMessages.size} new sent messages")
                                 updateConversationsWithNewMessages(newMessages)
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error processing sent messages", e)
-                            e.printStackTrace()
+                            if (BuildConfig.DEBUG) Log.e(TAG, "Error processing sent messages", e)
                         }
                     }
                 }
@@ -730,8 +679,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
                         _error.value = "Konuşmalar dinlenirken bir hata oluştu: ${error.message}"
-                        Log.e(TAG, "Conversation listener error (received): ${error.message}")
-                        error.printStackTrace()
+                        if (BuildConfig.DEBUG) Log.e(TAG, "Conversation listener error (received)", error)
                         return@addSnapshotListener
                     }
 
@@ -740,7 +688,6 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                             // İlk snapshot'ı atla (tüm mesajlar zaten yüklü)
                             if (isInitialSnapshotReceived) {
                                 isInitialSnapshotReceived = false
-                                Log.d(TAG, "Initial snapshot received (received), ${documents.size()} documents")
                                 return@addSnapshotListener
                             }
                             
@@ -752,22 +699,20 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                                 }
                             
                             if (newMessages.isNotEmpty()) {
-                                Log.d(TAG, "Conversation listener received ${newMessages.size} new received messages")
+                                if (BuildConfig.DEBUG) Log.d(TAG, "Got ${newMessages.size} new received messages")
                                 updateConversationsWithNewMessages(newMessages)
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error processing received messages", e)
-                            e.printStackTrace()
+                            if (BuildConfig.DEBUG) Log.e(TAG, "Error processing received messages", e)
                         }
                     }
                 }
             conversationListenerRegistrations.add(receivedListener)
-            
-            Log.d(TAG, "Conversation listeners started successfully")
+
+            if (BuildConfig.DEBUG) Log.d(TAG, "Conversation listeners started")
         } catch (e: Exception) {
             _error.value = "Konuşma dinleyicisi başlatılırken bir hata oluştu: ${e.message}"
-            Log.e(TAG, "Error starting conversation listeners", e)
-            e.printStackTrace()
+            if (BuildConfig.DEBUG) Log.e(TAG, "Error starting conversation listeners", e)
         }
     }
 
@@ -775,7 +720,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
     fun stopConversationListeners() {
         conversationListenerRegistrations.forEach { it.remove() }
         conversationListenerRegistrations.clear()
-        Log.d(TAG, "Conversation listeners stopped")
+        if (BuildConfig.DEBUG) Log.d(TAG, "Conversation listeners stopped")
     }
 
     private fun updateConversationsWithNewMessages(newMessages: List<Message>) {
@@ -870,7 +815,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                                     lastMessage = message,
                                     unreadCount = newUnreadCount
                                 )
-                                Log.d(TAG, "✅ Updated conversation for userId=$otherUserId with new message")
+                                if (BuildConfig.DEBUG) Log.d(TAG, "Conversation updated with a new message")
                             }
                         }
                     }
@@ -884,10 +829,9 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
 
                 // Konuşmaları son mesaj zamanına göre sırala
                 _conversations.value = visibleConversations.sortedByDescending { it.lastMessage?.timestamp }
-                Log.d(TAG, "✅ Conversations updated: ${_conversations.value.size} conversations")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Conversations updated: ${_conversations.value.size}")
             } catch (e: Exception) {
-                Log.e(TAG, "Error updating conversations", e)
-                e.printStackTrace()
+                if (BuildConfig.DEBUG) Log.e(TAG, "Error updating conversations", e)
             }
         }
     }
@@ -931,7 +875,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 // Konuşma listesini güncelle
                 updateConversationList(targetUserId)
             } catch (e: Exception) {
-                e.printStackTrace()
+                if (BuildConfig.DEBUG) Log.e(TAG, "markMessagesAsRead error", e)
             }
         }
     }
@@ -958,7 +902,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 (lastReadTime == null || message.timestamp.after(lastReadTime))
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            if (BuildConfig.DEBUG) Log.e(TAG, "calculateUnreadCount error", e)
             return 0
         }
     }
@@ -1026,7 +970,7 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                     _conversations.value = currentConversations.sortedByDescending { it.lastMessage?.timestamp }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                if (BuildConfig.DEBUG) Log.e(TAG, "updateConversationList(targetUserId) error", e)
             }
         }
     }

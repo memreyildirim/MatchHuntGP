@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -42,7 +43,7 @@ fun CompleteProfileScreen(navController: NavController) {
             // Logo
             Image(
                 painter = painterResource(id = R.drawable.logolastcircle),
-                contentDescription = "MatchHunt Logo",
+                contentDescription = stringResource(R.string.cd_matchhunt_logo),
                 modifier = Modifier.size(120.dp)
             )
             
@@ -50,7 +51,7 @@ fun CompleteProfileScreen(navController: NavController) {
             
             // Başlık
             Text(
-                text = "Complete the Profile",
+                text = stringResource(R.string.complete_profile_title),
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center
@@ -60,7 +61,7 @@ fun CompleteProfileScreen(navController: NavController) {
             
             // Açıklama
             Text(
-                text = "You need to complete your profile information for start using the application, ",
+                text = stringResource(R.string.complete_profile_description),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -80,24 +81,24 @@ fun CompleteProfileScreen(navController: NavController) {
                 ) {
                     ProfileFeature(
                         icon = Icons.Default.Person,
-                        title = "Personal Information",
-                        description = "Add name,age and other information"
+                        title = stringResource(R.string.complete_profile_feature_personal_title),
+                        description = stringResource(R.string.complete_profile_feature_personal_desc)
                     )
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     ProfileFeature(
                         icon = Icons.Default.LocationOn,
-                        title = "Location",
-                        description = "Select your location"
+                        title = stringResource(R.string.complete_profile_feature_location_title),
+                        description = stringResource(R.string.complete_profile_feature_location_desc)
                     )
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     ProfileFeature(
                         icon = Icons.Default.Sports,
-                        title = "Interested Sports",
-                        description = "Select the interested sports type"
+                        title = stringResource(R.string.complete_profile_feature_sports_title),
+                        description = stringResource(R.string.complete_profile_feature_sports_desc)
                     )
                 }
             }
@@ -118,7 +119,7 @@ fun CompleteProfileScreen(navController: NavController) {
                 )
             ) {
                 Text(
-                    text = "Create Profile",
+                    text = stringResource(R.string.complete_profile_button_create),
                     style = MaterialTheme.typography.labelLarge
                 )
             }

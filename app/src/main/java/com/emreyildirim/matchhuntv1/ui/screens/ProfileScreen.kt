@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -168,7 +169,7 @@ fun ProfileScreen(navController: NavController) {
         containerColor = MaterialTheme.colorScheme.secondaryContainer,
         topBar = {
             TopAppBar(
-                title = { Text("Profile", fontWeight = FontWeight.ExtraBold, fontSize = 27.sp) },
+                title = { Text(stringResource(R.string.profile_screen_title), fontWeight = FontWeight.ExtraBold, fontSize = 27.sp) },
                 actions = {
                     IconButton(onClick = {
                         navController.navigate("editProfile") {
@@ -183,13 +184,13 @@ fun ProfileScreen(navController: NavController) {
                             )
                         }
                     }) {
-                        Icon(Icons.Default.Edit,tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp),contentDescription = "Edit")
+                        Icon(Icons.Default.Edit,tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp),contentDescription = stringResource(R.string.cd_edit_profile))
                     }
                     IconButton(onClick = {
                         authViewModel.signOut()
                         navController.navigate("login") { popUpTo("main") { inclusive = true } }
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ExitToApp, modifier = Modifier.size(30.dp), contentDescription = "Logout", tint = MaterialTheme.colorScheme.error)
+                        Icon(Icons.AutoMirrored.Filled.ExitToApp, modifier = Modifier.size(30.dp), contentDescription = stringResource(R.string.cd_logout_icon), tint = MaterialTheme.colorScheme.error)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -252,7 +253,7 @@ fun ProfileScreen(navController: NavController) {
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = username.ifEmpty { "MatchHunter" },
+                            text = username.ifEmpty { stringResource(R.string.profile_default_display_name) },
                             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black)
                         )
                         Row(
@@ -293,7 +294,7 @@ fun ProfileScreen(navController: NavController) {
                         enter = slideInVertically(initialOffsetY = { 200 }) + fadeIn(tween(1000))
                     ) {
                         Column {
-                            SectionTitle(title = "About Me", icon = Icons.Default.Info)
+                            SectionTitle(title = stringResource(R.string.profile_section_about_me), icon = Icons.Default.Info)
                             AboutCard(about = about)
                         }
                     }
@@ -305,7 +306,7 @@ fun ProfileScreen(navController: NavController) {
                     enter = slideInVertically(initialOffsetY = { 300 }) + fadeIn(tween(1200))
                 ) {
                     Column {
-                        SectionTitle(title = "Areas of Interest", icon = Icons.Default.Interests)
+                        SectionTitle(title = stringResource(R.string.profile_section_interests), icon = Icons.Default.Interests)
                         SportsRow(sports = sports)
                     }
                 }
@@ -316,7 +317,7 @@ fun ProfileScreen(navController: NavController) {
                     enter = slideInVertically(initialOffsetY = { 400 }) + fadeIn(tween(1400))
                 ) {
                     Column {
-                        SectionTitle(title = "My Posts", icon = Icons.Default.GridOn)
+                        SectionTitle(title = stringResource(R.string.profile_section_my_posts), icon = Icons.Default.GridOn)
                         UserPostsGrid(
                             posts = userPosts,
                             onPostClick = { post ->
@@ -347,11 +348,11 @@ fun ProfileScreen(navController: NavController) {
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text("Reviews", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black))
+                Text(stringResource(R.string.profile_reviews_title), style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black))
                 Spacer(modifier = Modifier.height(16.dp))
                 if (userReviews.isEmpty()) {
                     Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                        Text("No reviews yet", color = Color.Gray)
+                        Text(stringResource(R.string.profile_no_reviews), color = Color.Gray)
                     }
                 } else {
                     LazyColumn(
@@ -390,7 +391,7 @@ fun ProfileScreen(navController: NavController) {
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                 Text(
-                    "My Posts",
+                    stringResource(R.string.profile_section_my_posts),
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -409,7 +410,7 @@ fun ProfileScreen(navController: NavController) {
                                 tint = Color.Gray.copy(alpha = 0.5f)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
-                            Text("No posts yet", color = Color.Gray)
+                            Text(stringResource(R.string.profile_no_posts), color = Color.Gray)
                         }
                     }
                 } else {
@@ -464,14 +465,14 @@ fun StatsCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Overall Rating", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.profile_overall_rating), color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = String.format("%.1f", averageRating),
                             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black, fontSize = 32.sp),
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Text("/5.0", color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(bottom = 6.dp, start = 2.dp))
+                        Text(stringResource(R.string.profile_rating_suffix), color = Color.Gray, fontSize = 14.sp, modifier = Modifier.padding(bottom = 6.dp, start = 2.dp))
                     }
                 }
                 Surface(
@@ -481,7 +482,7 @@ fun StatsCard(
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(text = "$totalReviews", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-                        Text("Reviews", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.profile_review_rating_count_label), color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -489,9 +490,9 @@ fun StatsCard(
             HorizontalDivider(Modifier.padding(vertical = 16.dp), thickness = 0.5.dp, color = Color.LightGray.copy(alpha = 0.5f))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                RatingStatItem(label = "Skill", value = skillRating)
-                RatingStatItem(label = "Behavior", value = behaviorRating)
-                RatingStatItem(label = "Cohesion", value = teamRating)
+                RatingStatItem(label = stringResource(R.string.profile_review_rating_label_skill), value = skillRating)
+                RatingStatItem(label = stringResource(R.string.profile_review_rating_label_behavior), value = behaviorRating)
+                RatingStatItem(label = stringResource(R.string.profile_review_rating_label_team), value = teamRating)
             }
         }
     }
@@ -515,7 +516,7 @@ fun AboutCard(about: String) {
             )
             if (about.length > 150) {
                 Text(
-                    text = if (isExpanded) "Show Less" else "Read More",
+                    text = if (isExpanded) stringResource(R.string.profile_about_show_less) else stringResource(R.string.profile_about_read_more),
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(top = 8.dp).clickable { isExpanded = !isExpanded }
@@ -611,7 +612,7 @@ fun UserPostsGrid(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        "No posts yet",
+                        stringResource(R.string.profile_posts_grid_empty),
                         color = Color.Gray,
                         fontSize = 14.sp
                     )
@@ -659,7 +660,7 @@ fun UserPostsGrid(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        "View All ${posts.size} Posts",
+                        stringResource(R.string.profile_view_all_posts, posts.size),
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
@@ -734,6 +735,7 @@ fun PostDetailCard(
     onPostDeleted: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val postDeletedText = stringResource(R.string.toast_post_deleted)
     val userRepository = remember { UserRepository() }
     val auth = FirebaseAuth.getInstance()
     var profileImageUrl by remember { mutableStateOf("") }
@@ -750,11 +752,12 @@ fun PostDetailCard(
     val isDeleting by postViewModel.isDeleting.collectAsState()
     val deleteError by postViewModel.deleteError.collectAsState()
     val deleteSuccess by postViewModel.deleteSuccess.collectAsState()
+    val postDeleteErrorText = stringResource(R.string.profile_toast_error_with_message, deleteError ?: "")
 
     // Toast mesajlarını göster
     LaunchedEffect(deleteSuccess) {
         deleteSuccess?.let {
-            Toast.makeText(context, "Post silindi", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, postDeletedText, Toast.LENGTH_SHORT).show()
             Log.d("PostDetailCard", "Post deleted successfully")
             postViewModel.clearDeleteSuccess()
         }
@@ -762,7 +765,7 @@ fun PostDetailCard(
 
     LaunchedEffect(deleteError) {
         deleteError?.let {
-            Toast.makeText(context, "Hata: $it", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, postDeleteErrorText, Toast.LENGTH_SHORT).show()
             Log.e("PostDetailCard", "Error deleting post: $it")
             postViewModel.clearDeleteError()
         }
@@ -849,10 +852,10 @@ fun PostDetailCard(
                                             strokeWidth = 2.dp
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Siliniyor...")
+                                        Text(stringResource(R.string.profile_deleting))
                                     }
                                 } else {
-                                    Text("Postu Sil")
+                                    Text(stringResource(R.string.profile_delete_post))
                                 }
                             },
                             onClick = {
@@ -873,7 +876,7 @@ fun PostDetailCard(
 //                            }
 //                        )
                         DropdownMenuItem(
-                            text = { Text("Şikayet Et") },
+                            text = { Text(stringResource(R.string.report_action_report)) },
                             onClick = {
                                 showMenu = false
                                 // TODO: Şikayet etme işlemi
@@ -925,7 +928,7 @@ fun PostDetailCard(
                 }) {
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = "Like",
+                        contentDescription = stringResource(R.string.cd_like),
                         tint = if (isLiked) Color.Red else Color.Black,
                         modifier = Modifier.size(26.dp)
                     )
@@ -1028,7 +1031,7 @@ fun PostDetailCard(
                             modifier = Modifier.weight(1f),
                             decorationBox = { innerTextField ->
                                 if (commentText.isEmpty()) {
-                                    Text("Add a comment...", color = Color.Gray, fontSize = 13.sp)
+                                    Text(stringResource(R.string.profile_placeholder_comment), color = Color.Gray, fontSize = 13.sp)
                                 }
                                 innerTextField()
                             }
@@ -1060,7 +1063,7 @@ fun PostDetailCard(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Send",
+                                contentDescription = stringResource(R.string.cd_send),
                                 tint = if (commentText.isNotBlank()) MaterialTheme.colorScheme.primary else Color.LightGray,
                                 modifier = Modifier.size(20.dp)
                             )

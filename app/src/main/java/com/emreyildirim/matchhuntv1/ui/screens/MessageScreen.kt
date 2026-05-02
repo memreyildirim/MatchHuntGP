@@ -27,6 +27,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,6 +77,7 @@ fun MessageScreen(
     var selectedReasonCode by remember { mutableStateOf("abuse") }
     var reasonText by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val reportSubmittedText = stringResource(R.string.toast_report_submitted_thanks)
 
     LaunchedEffect(targetUserId) {
         if (targetUserId != null) {
@@ -125,7 +127,7 @@ fun MessageScreen(
                 lastKnownLastMessageId = currentLastId
                 if (targetUserId != null) viewModel.markMessagesAsRead(targetUserId)
             }
-        } catch (e: Exception) { e.printStackTrace() }
+        } catch (_: Exception) { /* scroll/markRead failure is non-critical */ }
     }
 
     val chatBackground = Brush.verticalGradient(
@@ -153,7 +155,7 @@ fun MessageScreen(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = targetUserProfile?.username ?: "Yükleniyor...",
+                            text = targetUserProfile?.username ?: stringResource(R.string.loading),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.ExtraBold,
                             color = Obsidian
@@ -162,7 +164,7 @@ fun MessageScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri", tint = Obsidian)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back), tint = Obsidian)
                     }
                 },
                 actions = {
@@ -176,7 +178,7 @@ fun MessageScreen(
                             containerColor = MaterialTheme.colorScheme.background
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Sohbeti şikayet et") },
+                                text = { Text(stringResource(R.string.report_chat_title)) },
                                 onClick = {
                                     showMenu = false
                                     showReportDialog = true
@@ -239,7 +241,7 @@ fun MessageScreen(
                         value = messageText,
                         onValueChange = { messageText = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Mesaj yaz...", color = Color.Gray, fontSize = 14.sp) },
+                        placeholder = { Text(stringResource(R.string.message_placeholder), color = Color.Gray, fontSize = 14.sp) },
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
@@ -264,7 +266,7 @@ fun MessageScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Gönder",
+                            contentDescription = stringResource(R.string.cd_send),
                             modifier = Modifier.size(18.dp),
                             tint = BrandVolt
                         )
@@ -291,24 +293,24 @@ fun MessageScreen(
                         }
                         Toast.makeText(
                             context,
-                            "Şikayetiniz alındı. Teşekkür ederiz.",
+                            reportSubmittedText,
                             Toast.LENGTH_SHORT
                         ).show()
                         showReportDialog = false
                     }
                 ) {
-                    Text("Gönder")
+                    Text(stringResource(R.string.action_send))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showReportDialog = false }) {
-                    Text("İptal")
+                    Text(stringResource(R.string.cancel))
                 }
             },
-            title = { Text("Sohbeti şikayet et") },
+            title = { Text(stringResource(R.string.report_chat_title)) },
             text = {
                 Column {
-                    Text("Şikayet sebebini seçin", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.report_select_reason_title), style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
@@ -322,7 +324,7 @@ fun MessageScreen(
                             onClick = { selectedReasonCode = "abuse" }
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Taciz / uygunsuz içerik")
+                        Text(stringResource(R.string.report_reason_harassment_content))
                     }
 
                     Row(
@@ -336,7 +338,7 @@ fun MessageScreen(
                             onClick = { selectedReasonCode = "spam" }
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Spam / reklam")
+                        Text(stringResource(R.string.report_reason_spam))
                     }
 
                     Row(
@@ -350,7 +352,7 @@ fun MessageScreen(
                             onClick = { selectedReasonCode = "other" }
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Diğer")
+                        Text(stringResource(R.string.report_reason_other))
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -358,7 +360,7 @@ fun MessageScreen(
                     OutlinedTextField(
                         value = reasonText,
                         onValueChange = { reasonText = it },
-                        label = { Text("Detay (isteğe bağlı)") },
+                        label = { Text(stringResource(R.string.report_optional_detail)) },
                         singleLine = false,
                         modifier = Modifier.fillMaxWidth()
                     )

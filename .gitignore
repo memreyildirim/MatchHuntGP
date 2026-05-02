@@ -14,3 +14,6 @@
 .cxx
 local.properties
 app/src/main/java/com/emreyildirim/matchhuntv1/utils/Config.kt
+local.test.secrets.properties
+RELEASE_CHECKLIST.md
+scripts

@@ -16,8 +16,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.ui.components.LocationPicker
 import com.emreyildirim.matchhuntv1.ui.theme.ErrorDark
@@ -65,6 +67,10 @@ fun EditMyEventScreen(
     val error by viewModel.error.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val pastDateTimeText = stringResource(R.string.edit_my_event_err_past_datetime)
+    val invalidDateTimeText = stringResource(R.string.edit_my_event_err_invalid_datetime_format)
+    val pastDateText = stringResource(R.string.edit_my_event_err_past_date)
+    val pastTimeText = stringResource(R.string.edit_my_event_err_past_time)
     
     // Sport Type Dropdown
     var expanded by remember { mutableStateOf(false) }
@@ -78,10 +84,10 @@ fun EditMyEventScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Edit My Event") },
+                title = { Text(stringResource(R.string.edit_my_event_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 }
             )
@@ -99,7 +105,7 @@ fun EditMyEventScreen(
             OutlinedTextField(
                 value = eventTitle,
                 onValueChange = { eventTitle = it },
-                label = { Text("Event Title") },
+                label = { Text(stringResource(R.string.edit_my_event_field_title)) },
                 modifier = Modifier.fillMaxWidth()
             )
             
@@ -107,7 +113,7 @@ fun EditMyEventScreen(
             OutlinedTextField(
                 value = eventDescription,
                 onValueChange = { eventDescription = it },
-                label = { Text("Description") },
+                label = { Text(stringResource(R.string.edit_my_event_field_description)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3
             )
@@ -121,7 +127,7 @@ fun EditMyEventScreen(
                     value = selectedSportType,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Sport Type") },
+                    label = { Text(stringResource(R.string.edit_my_event_field_sport)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -153,10 +159,10 @@ fun EditMyEventScreen(
                     value = eventDate,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Date") },
+                    label = { Text(stringResource(R.string.edit_my_event_field_date)) },
                     leadingIcon = {
                         IconButton(onClick = { showDatePicker = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Choose Date")
+                            Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.cd_choose_date))
                         }
                     },
                     modifier = Modifier.weight(1f)
@@ -166,10 +172,10 @@ fun EditMyEventScreen(
                     value = eventTime,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Time") },
+                    label = { Text(stringResource(R.string.edit_my_event_field_time)) },
                     leadingIcon = {
                         IconButton(onClick = { showTimePicker = true }) {
-                            Icon(Icons.Default.Schedule, contentDescription = "Choose Time")
+                            Icon(Icons.Default.Schedule, contentDescription = stringResource(R.string.cd_choose_time))
                         }
                     },
                     modifier = Modifier.weight(1f)
@@ -181,10 +187,10 @@ fun EditMyEventScreen(
                 value = eventLocation,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Location") },
+                label = { Text(stringResource(R.string.edit_my_event_field_location)) },
                 leadingIcon = {
                     IconButton(onClick = { showLocationPicker = true }) {
-                        Icon(Icons.Default.LocationOn, contentDescription = "Choose Location")
+                        Icon(Icons.Default.LocationOn, contentDescription = stringResource(R.string.cd_choose_location))
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -194,7 +200,7 @@ fun EditMyEventScreen(
             OutlinedTextField(
                 value = maxParticipants,
                 onValueChange = { maxParticipants = it },
-                label = { Text("Maximum Participants") },
+                label = { Text(stringResource(R.string.edit_my_event_field_max_participants)) },
                 modifier = Modifier.fillMaxWidth()
             )
             
@@ -230,7 +236,7 @@ fun EditMyEventScreen(
                         if (selectedCalendar.time.before(currentCalendar.time)) {
                             android.widget.Toast.makeText(
                                 context,
-                                "You cannot set event date and time in the past!",
+                                pastDateTimeText,
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                             return@Button
@@ -238,7 +244,7 @@ fun EditMyEventScreen(
                     } catch (e: Exception) {
                         android.widget.Toast.makeText(
                             context,
-                            "Invalid date or time format!",
+                            invalidDateTimeText,
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                         return@Button
@@ -265,7 +271,7 @@ fun EditMyEventScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Update Event")
+                Text(stringResource(R.string.edit_my_event_update))
             }
 
             //Delete Button
@@ -275,7 +281,7 @@ fun EditMyEventScreen(
             },
                 colors = ButtonDefaults.buttonColors(containerColor = ErrorLight),
                 modifier = Modifier.fillMaxWidth()) {
-                Text("Delete Event")
+                Text(stringResource(R.string.edit_my_event_delete))
             }
         }
     }
@@ -311,7 +317,7 @@ fun EditMyEventScreen(
                             if (calendar.time.before(currentCalendar.time)) {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "You cannot select a past date!",
+                                    pastDateText,
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             } else {
@@ -322,12 +328,12 @@ fun EditMyEventScreen(
                         }
                     }
                 ) {
-                    Text("Okey")
+                    Text(stringResource(R.string.ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         ) {
@@ -373,7 +379,7 @@ fun EditMyEventScreen(
                     if (selectedTimeInMinutes < currentTimeInMinutes) {
                         android.widget.Toast.makeText(
                             context,
-                            "You cannot select a past time!",
+                            pastTimeText,
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                         return@TimePickerDialog

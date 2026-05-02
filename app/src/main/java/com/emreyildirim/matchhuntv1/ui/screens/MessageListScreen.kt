@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,14 +71,14 @@ fun MessageListScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "Messages",
+                        stringResource(R.string.message_list_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -102,7 +103,7 @@ fun MessageListScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 8.dp),
-                    placeholder = { Text("Search messages...") },
+                    placeholder = { Text(stringResource(R.string.message_list_search_placeholder)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -222,7 +223,7 @@ fun ModernConversationItem(
 
                     // Akıllı Zaman Formatı
                     Text(
-                        text = formatTimestamp(conversation.lastMessage?.timestamp),
+                        text = formatTimestamp(conversation.lastMessage?.timestamp, stringResource(R.string.message_list_yesterday)),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (conversation.unreadCount > 0)
                             MaterialTheme.colorScheme.primary
@@ -235,7 +236,7 @@ fun ModernConversationItem(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = conversation.lastMessage?.text ?: "No message",
+                        text = conversation.lastMessage?.text ?: stringResource(R.string.message_list_no_preview),
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (conversation.unreadCount > 0)
                             MaterialTheme.colorScheme.onSurface
@@ -265,8 +266,8 @@ fun ModernConversationItem(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Konuşmayı Gizle") },
-            text = { Text("Bu konuşmayı mesajlaşma listenizden kaldırmak istediğinizden emin misiniz? Yeni mesaj geldiğinde tekrar görünecektir.") },
+            title = { Text(stringResource(R.string.message_list_hide_chat_title)) },
+            text = { Text(stringResource(R.string.message_list_hide_chat_body)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -274,12 +275,12 @@ fun ModernConversationItem(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("Kaldır", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.message_list_remove_confirm), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("İptal")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -301,12 +302,12 @@ fun EmptyState() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No messages yet",
+            text = stringResource(R.string.message_list_empty_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            text = "Start a conversation to see it here.",
+            text = stringResource(R.string.message_list_empty_subtitle),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
@@ -322,11 +323,11 @@ fun ErrorState(message: String, onRetry: () -> Unit) {
     ) {
         Text(text = message, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onRetry) { Text("Try Again") }
+        Button(onClick = onRetry) { Text(stringResource(R.string.message_list_try_again)) }
     }
 }
 
-private fun formatTimestamp(timestamp: Date?): String {
+private fun formatTimestamp(timestamp: Date?, yesterdayLabel: String): String {
     if (timestamp == null) return ""
     val now = Calendar.getInstance()
     val time = Calendar.getInstance().apply { time = timestamp }
@@ -336,7 +337,7 @@ private fun formatTimestamp(timestamp: Date?): String {
             SimpleDateFormat("HH:mm", Locale.getDefault()).format(timestamp)
         }
         now.get(Calendar.DATE) - time.get(Calendar.DATE) == 1 -> {
-            "Yesterday"
+            yesterdayLabel
         }
         else -> {
             SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(timestamp)

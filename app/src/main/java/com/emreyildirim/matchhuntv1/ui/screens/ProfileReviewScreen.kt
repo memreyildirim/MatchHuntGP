@@ -23,12 +23,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.emreyildirim.matchhuntv1.BuildConfig
 import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
@@ -77,6 +79,7 @@ fun ProfileReviewScreen(
     val bottomSheetState = rememberModalBottomSheetState()
     var showReviewsSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val reportSubmittedText = stringResource(R.string.toast_report_submitted_thanks)
 
     // Etkinlik Verileri
     val createdEvents by viewModel.createdEventsForUser.collectAsState()
@@ -84,7 +87,7 @@ fun ProfileReviewScreen(
 
     // Veri Çekme Mantığı
     LaunchedEffect(userId) {
-        Log.d("ProfileReviewScreen", "LaunchedEffect started for userId=$userId")
+        if (BuildConfig.DEBUG) Log.d("ProfileReviewScreen", "LaunchedEffect started")
         val firestore = FirebaseFirestore.getInstance()
         try {
             viewModel.loadEventsForUserReviewScreen(userId = userId)
@@ -113,24 +116,26 @@ fun ProfileReviewScreen(
 
     // Event listeleri gerçekten güncelleniyor mu görmek için ek log
     LaunchedEffect(createdEvents, participatedEvents) {
-        Log.d(
-            "ProfileReviewScreen",
-            "Events updated for userId=$userId createdEvents=${createdEvents.size} participatedEvents=${participatedEvents.size}"
-        )
+        if (BuildConfig.DEBUG) {
+            Log.d(
+                "ProfileReviewScreen",
+                "Events updated: created=${createdEvents.size}, participated=${participatedEvents.size}"
+            )
+        }
     }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Kullanıcı Profili", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.profile_review_screen_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Daha Fazla")
+                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.cd_more))
                     }
                     DropdownMenu(
                         expanded = showMenu,
@@ -138,7 +143,7 @@ fun ProfileReviewScreen(
                         containerColor = MaterialTheme.colorScheme.surface
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Şikayet Et", color = MaterialTheme.colorScheme.onSurface) },
+                            text = { Text(stringResource(R.string.report_action_report), color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 showMenu = false
                                 showReportDialog = true
@@ -171,8 +176,8 @@ fun ProfileReviewScreen(
 
                     ProfileHeaderSection(
                         profileImageUrl = userProfile?.profileImageUrl ?: "",
-                        username = userProfile?.username ?: "Bilinmeyen Kullanıcı",
-                        location = userProfile?.city ?: "Konum belirtilmedi",
+                        username = userProfile?.username ?: stringResource(R.string.profile_review_unknown_user),
+                        location = userProfile?.city ?: stringResource(R.string.profile_review_location_unset),
                         age = userProfile?.age, // Yaş bilgisini buradan aktarıyoruz
                         onMessageClick =  if (currentUserId != null && userId != currentUserId) {
                             { navController.navigate("messages/${userId}") }
@@ -200,14 +205,14 @@ fun ProfileReviewScreen(
                             ) {
                                 Column {
                                     Text(
-                                        text = "Genel Puan",
+                                        text = stringResource(R.string.profile_overall_rating),
                                         color = Color.Gray,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Row(verticalAlignment = Alignment.Bottom) {
                                         Text(
-                                            text = if (averageRating > 0) String.format("%.1f", averageRating) else "—",
+                                            text = if (averageRating > 0) String.format("%.1f", averageRating) else stringResource(R.string.profile_rating_not_available),
                                             style = MaterialTheme.typography.headlineMedium.copy(
                                                 fontWeight = FontWeight.Black,
                                                 fontSize = 32.sp
@@ -215,7 +220,7 @@ fun ProfileReviewScreen(
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                         Text(
-                                            text = "/5.0",
+                                            text = stringResource(R.string.profile_rating_suffix),
                                             color = Color.Gray,
                                             fontSize = 14.sp,
                                             modifier = Modifier.padding(bottom = 6.dp, start = 2.dp)
@@ -238,7 +243,7 @@ fun ProfileReviewScreen(
                                             color = MaterialTheme.colorScheme.primary
                                         )
                                         Text(
-                                            text = "Değerlendirme",
+                                            text = stringResource(R.string.profile_review_rating_count_label),
                                             color = MaterialTheme.colorScheme.primary,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold
@@ -257,9 +262,9 @@ fun ProfileReviewScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                RatingStatItem(label = "Beceri", value = skillRating)
-                                RatingStatItem(label = "Davranış", value = behaviorRating)
-                                RatingStatItem(label = "Uyum", value = teamRating)
+                                RatingStatItem(label = stringResource(R.string.profile_review_rating_label_skill), value = skillRating)
+                                RatingStatItem(label = stringResource(R.string.profile_review_rating_label_behavior), value = behaviorRating)
+                                RatingStatItem(label = stringResource(R.string.profile_review_rating_label_team), value = teamRating)
                             }
                         }
                     }
@@ -267,7 +272,7 @@ fun ProfileReviewScreen(
                     Spacer(modifier = Modifier.height(32.dp))
 
                     if (!userProfile?.about.isNullOrEmpty()) {
-                        SectionHeader("Hakkımda")
+                        SectionHeader(stringResource(R.string.profile_review_section_about))
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
@@ -286,15 +291,15 @@ fun ProfileReviewScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     if (!userProfile?.sports.isNullOrEmpty()) {
-                        SectionHeader("İlgi Alanları")
+                        SectionHeader(stringResource(R.string.profile_review_section_interests))
                         InterestsRow(userProfile?.sports ?: emptyList())
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    EventCarousel("Oluşturulan Son 6 Etkinlik", createdEvents)
+                    EventCarousel(stringResource(R.string.profile_review_carousel_created), createdEvents)
                     Spacer(modifier = Modifier.height(24.dp))
-                    EventCarousel("Son Katılınan 6 Etkinlik", participatedEvents)
+                    EventCarousel(stringResource(R.string.profile_review_carousel_joined), participatedEvents)
 
                     Spacer(modifier = Modifier.height(60.dp))
                 }
@@ -315,7 +320,7 @@ fun ProfileReviewScreen(
                         .padding(bottom = 32.dp)
                 ) {
                     Text(
-                        text = "Değerlendirmeler",
+                        text = stringResource(R.string.profile_reviews_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 16.dp)
@@ -325,7 +330,7 @@ fun ProfileReviewScreen(
                         Box(modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-                            Text("Henüz değerlendirme yok.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.profile_review_no_reviews), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         LazyColumn(
@@ -355,24 +360,24 @@ fun ProfileReviewScreen(
                             )
                             Toast.makeText(
                                 context,
-                                "Şikayetiniz alındı. Teşekkür ederiz.",
+                                reportSubmittedText,
                                 Toast.LENGTH_SHORT
                             ).show()
                             showReportDialog = false
                         }
                     ) {
-                        Text("Gönder")
+                        Text(stringResource(R.string.action_send))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showReportDialog = false }) {
-                        Text("İptal")
+                        Text(stringResource(R.string.cancel))
                     }
                 },
-                title = { Text("Profili şikayet et") },
+                title = { Text(stringResource(R.string.report_profile_title)) },
                 text = {
                     Column {
-                        Text("Şikayet sebebini seçin", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.report_select_reason_title), style = MaterialTheme.typography.bodyMedium)
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
@@ -388,7 +393,7 @@ fun ProfileReviewScreen(
                                 onClick = { selectedReasonCode = "abuse" }
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Taciz / uygunsuz davranış")
+                            Text(stringResource(R.string.report_reason_harassment_behavior))
                         }
 
                         Row(
@@ -404,7 +409,7 @@ fun ProfileReviewScreen(
                                 onClick = { selectedReasonCode = "spam" }
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Spam / reklam")
+                            Text(stringResource(R.string.report_reason_spam))
                         }
 
                         Row(
@@ -420,7 +425,7 @@ fun ProfileReviewScreen(
                                 onClick = { selectedReasonCode = "fake" }
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sahte profil / yanlış bilgi")
+                            Text(stringResource(R.string.report_reason_fake_profile))
                         }
 
                         Row(
@@ -436,7 +441,7 @@ fun ProfileReviewScreen(
                                 onClick = { selectedReasonCode = "other" }
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Diğer")
+                            Text(stringResource(R.string.report_reason_other))
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -444,7 +449,7 @@ fun ProfileReviewScreen(
                         OutlinedTextField(
                             value = reasonText,
                             onValueChange = { reasonText = it },
-                            label = { Text("Detay (isteğe bağlı)") },
+                            label = { Text(stringResource(R.string.report_optional_detail)) },
                             singleLine = false,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -475,7 +480,7 @@ fun ProfileHeaderSection(
             ) {
                 AsyncImage(
                     model = profileImageUrl,
-                    contentDescription = "Profil",
+                    contentDescription = stringResource(R.string.cd_profile),
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape),
@@ -491,7 +496,7 @@ fun ProfileHeaderSection(
                     shape = CircleShape,
                     modifier = Modifier.offset(x = (-4).dp, y = (-4).dp)
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Message, contentDescription = "Mesaj", modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.Message, contentDescription = stringResource(R.string.cd_message), modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -577,7 +582,7 @@ fun EventCarousel(title: String, events: List<Event>) {
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("Henüz etkinlik yok", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                    Text(stringResource(R.string.profile_review_no_events), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
                 }
             }
         } else {

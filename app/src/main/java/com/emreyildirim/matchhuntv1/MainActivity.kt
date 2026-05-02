@@ -12,6 +12,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.emreyildirim.matchhuntv1.navigation.AppNavigation
 import com.emreyildirim.matchhuntv1.ui.theme.MatchHuntV1Theme
+import com.google.firebase.appcheck.AppCheckProviderFactory
+import com.google.firebase.appcheck.FirebaseAppCheck
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 class MainActivity : ComponentActivity() {
 
@@ -28,6 +32,27 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Crashlytics: debug build'inde kapali (lokal stack trace yeterli),
+        // release build'inde ac (Console'a crash raporlari gitsin).
+        FirebaseCrashlytics.getInstance().isCrashlyticsCollectionEnabled = !BuildConfig.DEBUG
+
+        val firebaseAppCheck = FirebaseAppCheck.getInstance()
+
+        if (BuildConfig.DEBUG) {
+            val debugFactory = loadDebugAppCheckFactoryOrNull()
+            if (debugFactory != null) {
+                firebaseAppCheck.installAppCheckProviderFactory(debugFactory)
+            } else {
+                firebaseAppCheck.installAppCheckProviderFactory(
+                    PlayIntegrityAppCheckProviderFactory.getInstance()
+                )
+            }
+        } else {
+            firebaseAppCheck.installAppCheckProviderFactory(
+                PlayIntegrityAppCheckProviderFactory.getInstance()
+            )
+        }
+
         //Android 13 (api33) ve sonrası için bildirim izni istemek zorunlu
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
             requestNotificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -41,6 +66,16 @@ class MainActivity : ComponentActivity() {
                     AppNavigation()
                 }
             }
+        }
+    }
+
+    private fun loadDebugAppCheckFactoryOrNull(): AppCheckProviderFactory? {
+        return try {
+            val clazz = Class.forName("com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory")
+            val getInstance = clazz.getMethod("getInstance")
+            getInstance.invoke(null) as AppCheckProviderFactory
+        } catch (_: Throwable) {
+            null
         }
     }
 }

@@ -12,7 +12,12 @@ import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.navigation.NavController
+import com.emreyildirim.matchhuntv1.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,15 +35,21 @@ fun EventsScreen(
             selectedTabIndex = pagerState.currentPage,
             modifier = Modifier.fillMaxWidth()
         ) {
+
+            val findTabCd = stringResource(R.string.cd_tab_find_event)
+            val createTabCd = stringResource(R.string.cd_tab_create_event)
+
             Tab(
+                modifier = Modifier.semantics { contentDescription = findTabCd },
                 selected = pagerState.currentPage == 0,
                 onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
-                text = { Text("Find Event") }
+                text = { Text(stringResource(R.string.tab_find_event_label)) }
             )
             Tab(
+                modifier = Modifier.semantics { contentDescription = createTabCd },
                 selected = pagerState.currentPage == 1,
                 onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
-                text = { Text("Create Event") }
+                text = { Text(stringResource(R.string.tab_create_event_label)) }
             )
         }
         

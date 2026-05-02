@@ -31,11 +31,14 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.emreyildirim.matchhuntv1.R
 import com.emreyildirim.matchhuntv1.data.model.Post
 import com.emreyildirim.matchhuntv1.ui.viewmodel.SocialFeedViewModel
 import com.emreyildirim.matchhuntv1.ui.viewmodel.MessageViewModel
@@ -107,7 +110,7 @@ fun SocialFeedScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Social Feed",
+                        stringResource(R.string.social_feed),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Black,
                             letterSpacing = (-0.5).sp,
@@ -136,7 +139,7 @@ fun SocialFeedScreen(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Message,
-                                contentDescription = "Messages",
+                                contentDescription = stringResource(R.string.cd_messages_nav),
                                 modifier = Modifier.size(30.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -144,7 +147,7 @@ fun SocialFeedScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background // TopBar rengi arka planla aynı yapılarak uyumsuzluk giderildi
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
@@ -158,7 +161,7 @@ fun SocialFeedScreen(
                     .padding(bottom = 85.dp)
                     .navigationBarsPadding()
             ) {
-                Icon(Icons.Default.Add, "Create", modifier = Modifier.size(28.dp))
+                Icon(Icons.Default.Add, stringResource(R.string.cd_create_post_fab), modifier = Modifier.size(28.dp))
             }
         }
     ) { paddingValues ->
@@ -182,6 +185,31 @@ fun SocialFeedScreen(
                         strokeWidth = 3.dp,
                         modifier = Modifier.size(40.dp)
                     )
+                }
+            } else if (posts.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.social_feed_empty),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
@@ -245,6 +273,7 @@ fun PostCard(
     }
 
     val context = LocalContext.current
+    val reportSubmittedText = stringResource(R.string.toast_report_submitted_thanks)
 
     LaunchedEffect(post.userId) {
         val userData = userRepository.getUserProfileData(post.userId)
@@ -305,7 +334,7 @@ fun PostCard(
                         containerColor = MaterialTheme.colorScheme.surface
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Şikayet Et", color = MaterialTheme.colorScheme.onSurface) },
+                            text = { Text(stringResource(R.string.report_action_report), color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 showMenu = false
                                 showReportDialog = true
@@ -364,7 +393,7 @@ fun PostCard(
                 }) {
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = "Like",
+                        contentDescription = stringResource(R.string.cd_like),
                         tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(26.dp)
                     )
@@ -456,7 +485,7 @@ fun PostCard(
                             modifier = Modifier.weight(1f),
                             decorationBox = { innerTextField ->
                                 if (commentText.isEmpty()) {
-                                    Text("Add comment...", color = Color.Gray, fontSize = 13.sp)
+                                    Text(stringResource(R.string.social_feed_add_comment_placeholder), color = Color.Gray, fontSize = 13.sp)
                                 }
                                 innerTextField()
                             }
@@ -473,7 +502,7 @@ fun PostCard(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Send",
+                                contentDescription = stringResource(R.string.cd_send),
                                 tint = if (commentText.isNotBlank()) MaterialTheme.colorScheme.primary else Color.LightGray,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -498,24 +527,24 @@ fun PostCard(
                             )
                             Toast.makeText(
                                 context,
-                                "Şikayetiniz alındı. Teşekkür ederiz.",
+                                reportSubmittedText,
                                 Toast.LENGTH_SHORT
                             ).show()
                             showReportDialog = false
                         }
                     ) {
-                        Text("Gönder")
+                        Text(stringResource(R.string.action_send))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showReportDialog = false }) {
-                        Text("İptal")
+                        Text(stringResource(R.string.cancel))
                     }
                 },
-                title = { Text("Gönderiyi şikayet et") },
+                title = { Text(stringResource(R.string.report_post_title)) },
                 text = {
                     Column {
-                        Text("Şikayet sebebini seçin", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.report_select_reason_title), style = MaterialTheme.typography.bodyMedium)
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
@@ -529,7 +558,7 @@ fun PostCard(
                                 onClick = { selectedReasonCode = "abuse" }
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Taciz / uygunsuz içerik")
+                            Text(stringResource(R.string.report_reason_harassment_content))
                         }
 
                         Row(
@@ -543,7 +572,7 @@ fun PostCard(
                                 onClick = { selectedReasonCode = "spam" }
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Spam / reklam")
+                            Text(stringResource(R.string.report_reason_spam))
                         }
 
                         Row(
@@ -557,7 +586,7 @@ fun PostCard(
                                 onClick = { selectedReasonCode = "other" }
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Diğer")
+                            Text(stringResource(R.string.report_reason_other))
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -565,7 +594,7 @@ fun PostCard(
                         OutlinedTextField(
                             value = reasonText,
                             onValueChange = { reasonText = it },
-                            label = { Text("Detay (isteğe bağlı)") },
+                            label = { Text(stringResource(R.string.report_optional_detail)) },
                             singleLine = false,
                             modifier = Modifier.fillMaxWidth()
                         )

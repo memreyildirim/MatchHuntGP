@@ -15,10 +15,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -29,17 +31,23 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.emreyildirim.matchhuntv1.R
+import com.emreyildirim.matchhuntv1.ui.theme.AcceptGreen
+import com.emreyildirim.matchhuntv1.ui.theme.BrandVolt
+import com.emreyildirim.matchhuntv1.ui.theme.MutedText
+import com.emreyildirim.matchhuntv1.ui.theme.Obsidian
+import com.emreyildirim.matchhuntv1.ui.theme.PureWhite
+import com.emreyildirim.matchhuntv1.ui.theme.SoftGray
 import com.emreyildirim.matchhuntv1.ui.viewmodel.AuthViewModel
-
-// --- MATCHHUNT RENK PALETİ ---
-val BrandVolt = Color(0xFFDFFF00)
-val Obsidian = Color(0xFF121417)
-val SoftGray = Color(0xFFF3F5F7)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController) {
+    val context = LocalContext.current
     val authViewModel: AuthViewModel = viewModel()
+    val errorEnterEmailFirst = stringResource(R.string.login_error_enter_email_first)
+    val errorInvalidEmailFormat = stringResource(R.string.login_error_invalid_email_format)
+    val resetSentText = stringResource(R.string.login_reset_sent)
+    val enterValidEmailText = stringResource(R.string.login_enter_valid_email)
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -115,7 +123,7 @@ fun LoginScreen(navController: NavController) {
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.logolastcircle),
-                        contentDescription = "MatchHunt Logo", //test yaparken bunlar önemli content desc kodu testable yapar
+                        contentDescription = stringResource(R.string.cd_matchhunt_logo),
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -124,7 +132,7 @@ fun LoginScreen(navController: NavController) {
 
                 // Karşılama Metni
                 Text(
-                    text = "HOŞGELDİN",
+                    text = stringResource(R.string.login_title_welcome),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Black,
                         letterSpacing = 2.sp,
@@ -133,9 +141,9 @@ fun LoginScreen(navController: NavController) {
                 )
 
                 Text(
-                    text = "Spor partnerini bulmak için giriş yap",
+                    text = stringResource(R.string.login_subtitle),
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        color = Color.Gray,
+                        color = MutedText,
                         fontWeight = FontWeight.Medium
                     ),
                     textAlign = TextAlign.Center
@@ -155,7 +163,7 @@ fun LoginScreen(navController: NavController) {
                             email = it
                             localFeedback = null // Yazmaya başlayınca mesajı temizle
                         },
-                        label = { Text("E-posta Adresi") },
+                        label = { Text(stringResource(R.string.auth_field_email_address)) },
                         leadingIcon = { Icon(Icons.Default.Email, null, tint = Obsidian) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         modifier = Modifier.fillMaxWidth()
@@ -165,8 +173,8 @@ fun LoginScreen(navController: NavController) {
                             focusedBorderColor = Obsidian,
                             unfocusedBorderColor = Color.LightGray,
                             focusedLabelColor = Obsidian,
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White
+                            focusedContainerColor = PureWhite,
+                            unfocusedContainerColor = PureWhite
                         ),
                         singleLine = true
                     )
@@ -175,14 +183,14 @@ fun LoginScreen(navController: NavController) {
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("Şifre") },
+                        label = { Text(stringResource(R.string.password)) },
                         leadingIcon = { Icon(Icons.Default.Lock, null, tint = Obsidian) },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                                     contentDescription = null,
-                                    tint = Color.Gray
+                                    tint = MutedText
                                 )
                             }
                         },
@@ -194,8 +202,8 @@ fun LoginScreen(navController: NavController) {
                             focusedBorderColor = Obsidian,
                             unfocusedBorderColor = Color.LightGray,
                             focusedLabelColor = Obsidian,
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White
+                            focusedContainerColor = PureWhite,
+                            unfocusedContainerColor = PureWhite
                         ),
                         singleLine = true
                     )
@@ -205,18 +213,18 @@ fun LoginScreen(navController: NavController) {
                 TextButton(
                     onClick = {
                         if (email.isBlank()) {
-                            localFeedback = "Lütfen önce e-posta adresinizi girin."
+                            localFeedback = errorEnterEmailFirst
                         } else if (!isEmailValid) {
-                            localFeedback = "Geçersiz e-posta formatı."
+                            localFeedback = errorInvalidEmailFormat
                         } else {
                             authViewModel.resetPassword(email)
-                            localFeedback = "Sıfırlama bağlantısı gönderildi."
+                            localFeedback = resetSentText
                         }
                     },
                     modifier = Modifier.align(Alignment.End)
                 ) {
                     Text(
-                        text = "Şifremi Unuttum",
+                        text = stringResource(R.string.login_forgot_password),
                         color = Obsidian,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
@@ -237,7 +245,7 @@ fun LoginScreen(navController: NavController) {
                         color = if (error != null || (localFeedback?.contains("geçersiz", ignoreCase = true) == true || localFeedback?.contains("önce", ignoreCase = true) == true))
                             MaterialTheme.colorScheme.error
                         else
-                            Color(0xFF2ECC71), // Başarı mesajları için yeşil
+                            AcceptGreen,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(bottom = 16.dp),
                         textAlign = TextAlign.Center
@@ -250,7 +258,7 @@ fun LoginScreen(navController: NavController) {
                         if (isEmailValid) {
                             authViewModel.signIn(email, password)
                         } else {
-                            localFeedback = "Lütfen geçerli bir e-posta adresi girin."
+                            localFeedback = enterValidEmailText
                         }
                     },
                     enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
@@ -273,7 +281,7 @@ fun LoginScreen(navController: NavController) {
                         )
                     } else {
                         Text(
-                            text = "GİRİŞ YAP",
+                            text = stringResource(R.string.login_button_caps),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 1.sp
@@ -291,13 +299,13 @@ fun LoginScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Hesabın yok mu?",
-                        color = Color.Gray,
+                        text = stringResource(R.string.no_account),
+                        color = MutedText,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     TextButton(onClick = { navController.navigate("register") }) {
                         Text(
-                            "Kayıt Ol",
+                            stringResource(R.string.register),
                             color = Obsidian,
                             fontWeight = FontWeight.Black,
                             style = MaterialTheme.typography.bodyMedium

@@ -1,9 +1,7 @@
 package com.emreyildirim.matchhuntv1;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
 import org.openqa.selenium.WebElement;
+import org.testng.annotations.Test;
 
 import java.net.MalformedURLException;
 import java.net.URL;

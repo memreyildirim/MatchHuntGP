@@ -1,6 +1,5 @@
 package com.emreyildirim.matchhuntv1.constants;
 
-import org.junit.Assume;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -36,7 +35,7 @@ public final class TestSecrets {
         String username = getUsername();
         String password = getPassword();
 
-        Assume.assumeTrue(username != null && !username.isBlank());
-        Assume.assumeTrue(password != null && !password.isBlank());
+//        Assume.assumeTrue(username != null && !username.isBlank());
+//        Assume.assumeTrue(password != null && !password.isBlank());
     }
 }

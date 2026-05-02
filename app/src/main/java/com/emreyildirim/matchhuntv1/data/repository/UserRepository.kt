@@ -1,5 +1,7 @@
 package com.emreyildirim.matchhuntv1.data.repository
 
+import android.util.Log
+import com.emreyildirim.matchhuntv1.BuildConfig
 import android.net.Uri
 import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
@@ -14,6 +16,7 @@ import kotlinx.coroutines.coroutineScope
 import java.util.UUID
 
 class UserRepository {
+    private val tag = "UserRepository"
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private val storage = FirebaseStorage.getInstance()
@@ -59,7 +62,7 @@ class UserRepository {
             // 2) Yeni spor listesini normalize et (lowercase)
             val normalizedSports = sports.map { it.lowercase() }
 
-            println("Creating user profile with about: $about") // Debug log
+            if (BuildConfig.DEBUG) Log.d(tag, "Creating user profile")
             val userData = hashMapOf(
                 "username" to username,
                 "age" to age,
@@ -68,11 +71,11 @@ class UserRepository {
                 "about" to about,
                 "isProfileComplete" to true
             )
-            println("User data to be saved: $userData") // Debug log
+            if (BuildConfig.DEBUG) Log.d(tag, "Saving user profile fields")
 
             // 3) Firestore'a yaz
             usersCollection.document(userId).set(userData, SetOptions.merge()).await()
-            println("User profile created/updated successfully") // Debug log
+            if (BuildConfig.DEBUG) Log.d(tag, "User profile created/updated successfully")
 
             // 4) Topic aboneliklerini güncelle (unsubscribe + subscribe)
             updateSportsTopics(
@@ -82,8 +85,7 @@ class UserRepository {
 
             true
         } catch (e: Exception) {
-            println("Error creating/updating user profile: ${e.message}")
-            e.printStackTrace()
+            Log.e(tag, "Error creating/updating user profile: ${e.message}")
             false
         }
     }
@@ -107,7 +109,7 @@ class UserRepository {
                     deleteProfileImage(oldPhotoUrl)
                 } catch (e: Exception) {
                     // Eski fotoğraf silinirken hata oluşursa devam et
-                    println("Eski fotoğraf silinirken hata: ${e.message}")
+                    Log.w(tag, "Previous profile image delete failed: ${e.message}")
                 }
             }
 
@@ -133,7 +135,7 @@ class UserRepository {
             storageRef.delete().await()
         } catch (e: Exception) {
             // Hata durumunda loglama yapılabilir
-            println("Error deleting profile image: ${e.message}")
+            Log.w(tag, "Error deleting profile image: ${e.message}")
         }
     }
 

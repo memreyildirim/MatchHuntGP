@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -42,6 +43,9 @@ import com.emreyildirim.matchhuntv1.utils.Sports
 import com.emreyildirim.matchhuntv1.utils.NetworkUtils
 import com.emreyildirim.matchhuntv1.utils.withNetworkTimeout
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
+import com.emreyildirim.matchhuntv1.ui.theme.BrandVolt
+import com.emreyildirim.matchhuntv1.ui.theme.Obsidian
+import com.emreyildirim.matchhuntv1.ui.theme.SoftGray
 import com.emreyildirim.matchhuntv1.ui.viewmodel.AuthViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
@@ -55,6 +59,10 @@ fun CreateProfileScreen(navController: NavController) {
     val userRepository = remember { UserRepository() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val fillRequiredFieldsText = stringResource(R.string.edit_profile_fill_required_fields)
+    val networkUnavailableDetailText = stringResource(R.string.error_network_unavailable_detail)
+    val invalidAgeText = stringResource(R.string.create_profile_error_invalid_age)
+    val createProfileFailedText = stringResource(R.string.create_profile_error_failed)
 
     // Form State
     var username by remember { mutableStateOf("") }
@@ -81,7 +89,7 @@ fun CreateProfileScreen(navController: NavController) {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "PROFİL OLUŞTUR",
+                        text = stringResource(R.string.create_profile_title),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Black,
                             letterSpacing = 2.sp,
@@ -126,7 +134,7 @@ fun CreateProfileScreen(navController: NavController) {
                         } else {
                             painterResource(id = R.drawable.ic_profile_placeholder)
                         },
-                        contentDescription = "Profil Fotoğrafı",
+                        contentDescription = stringResource(R.string.cd_profile_photo),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -144,7 +152,7 @@ fun CreateProfileScreen(navController: NavController) {
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Fotoğraf Ekle",
+                        contentDescription = stringResource(R.string.cd_add_photo),
                         tint = BrandVolt,
                         modifier = Modifier.size(20.dp)
                     )
@@ -158,7 +166,7 @@ fun CreateProfileScreen(navController: NavController) {
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("Kullanıcı Adı") },
+                    label = { Text(stringResource(R.string.profile_field_username)) },
                     modifier = Modifier.fillMaxWidth(),
                     leadingIcon = { Icon(Icons.Default.Person, null, tint = Obsidian) },
                     shape = RoundedCornerShape(16.dp),
@@ -177,7 +185,7 @@ fun CreateProfileScreen(navController: NavController) {
                     value = age,
                     onValueChange = { age = it },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    label = { Text("Yaş") },
+                    label = { Text(stringResource(R.string.profile_field_age)) },
                     modifier = Modifier.fillMaxWidth(),
                     leadingIcon = { Icon(Icons.Default.CalendarToday, null, tint = Obsidian) },
                     shape = RoundedCornerShape(16.dp),
@@ -200,7 +208,7 @@ fun CreateProfileScreen(navController: NavController) {
                         value = selectedCity,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Şehir") },
+                        label = { Text(stringResource(R.string.profile_field_city)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCityDropdownExpanded) },
                         leadingIcon = { Icon(Icons.Default.LocationOn, null, tint = Obsidian) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
@@ -235,7 +243,7 @@ fun CreateProfileScreen(navController: NavController) {
                 OutlinedTextField(
                     value = about,
                     onValueChange = { about = it },
-                    label = { Text("Hakkımda (Opsiyonel)") },
+                    label = { Text(stringResource(R.string.profile_field_about_optional)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
                     maxLines = 5,
@@ -258,7 +266,7 @@ fun CreateProfileScreen(navController: NavController) {
                 Icon(Icons.Default.Interests, null, modifier = Modifier.size(18.dp), tint = Obsidian)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "İLGİ ALANLARI",
+                    text = stringResource(R.string.edit_profile_interests_header),
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.sp,
@@ -326,7 +334,7 @@ fun CreateProfileScreen(navController: NavController) {
             Button(
                 onClick = {
                     if (username.isBlank() || age.isBlank() || selectedCity.isBlank() || selectedSports.isEmpty()) {
-                        errorMessage = "Lütfen tüm zorunlu alanları doldurun."
+                        errorMessage = fillRequiredFieldsText
                         return@Button
                     }
 
@@ -337,7 +345,7 @@ fun CreateProfileScreen(navController: NavController) {
                             
                             // Network kontrolü
                             if (!NetworkUtils.isNetworkAvailable(context)) {
-                                errorMessage = "İnternet bağlantısı bulunamadı. Lütfen bağlantınızı kontrol edin."
+                                errorMessage = networkUnavailableDetailText
                                 isLoading = false
                                 return@launch
                             }
@@ -355,7 +363,7 @@ fun CreateProfileScreen(navController: NavController) {
                             // 2. Profil Verisi Oluşturma
                             val ageInt = age.toIntOrNull()
                             if (ageInt == null || ageInt <= 0 || ageInt >= 110) {
-                                throw Exception("Lütfen geçerli bir yaş girin.")
+                                throw Exception(invalidAgeText)
                             }
 
                             val success = withNetworkTimeout {
@@ -376,7 +384,7 @@ fun CreateProfileScreen(navController: NavController) {
                                 }
                             }
 
-                            if (!success) throw Exception("Profil oluşturulamadı.")
+                            if (!success) throw Exception(createProfileFailedText)
 
                             navController.navigate("main") {
                                 popUpTo("createProfile") { inclusive = true }
@@ -406,7 +414,7 @@ fun CreateProfileScreen(navController: NavController) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = BrandVolt)
                 } else {
                     Text(
-                        text = "PROFİLİ OLUŞTUR",
+                        text = stringResource(R.string.create_profile_submit),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.sp

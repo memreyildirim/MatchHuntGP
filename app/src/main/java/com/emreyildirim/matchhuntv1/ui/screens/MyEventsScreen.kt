@@ -24,16 +24,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.emreyildirim.matchhuntv1.BuildConfig
 import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.data.repository.ReviewRepository
 import com.emreyildirim.matchhuntv1.ui.components.LocationText
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
-import com.emreyildirim.matchhuntv1.utils.Config
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
@@ -50,6 +51,7 @@ import com.emreyildirim.matchhuntv1.utils.Sports
 import com.emreyildirim.matchhuntv1.ui.viewmodel.ReviewViewModel
 import android.net.Uri
 import android.util.Log
+import com.emreyildirim.matchhuntv1.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,12 +106,12 @@ fun MyEventsScreen(
             Tab(
                 selected = pagerState.currentPage == 0,
                 onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
-                text = { Text("My Created Events") }
+                text = { Text(stringResource(R.string.my_events_tab_created)) }
             )
             Tab(
                 selected = pagerState.currentPage == 1,
                 onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
-                text = { Text("My Participated Events") }
+                text = { Text(stringResource(R.string.my_events_tab_participated)) }
             )
         }
 
@@ -178,7 +180,7 @@ fun MyCreatedEventsList(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text("You haven't created an event yet")
+                Text(stringResource(R.string.no_event))
             }
         } else {
             LazyColumn(
@@ -372,7 +374,7 @@ fun MyCreatedEventCard(
                     )
                     LocationText(
                         latLng = LatLng(event.latitude, event.longitude),
-                        apiKey = Config.MAPS_API_KEY,
+                        apiKey = BuildConfig.MAPS_API_KEY,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -392,7 +394,7 @@ fun MyCreatedEventCard(
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
-                        Text("Edit")
+                        Text(stringResource(R.string.my_events_edit))
                     }
                 }
 
@@ -405,7 +407,7 @@ fun MyCreatedEventCard(
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
-                        Text("Requests (${event.pendingRequests.size})")
+                        Text(stringResource(R.string.my_events_requests_count, event.pendingRequests.size))
                     }
                 }
             }
@@ -423,13 +425,20 @@ fun MyCreatedEventCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Participants (${event.participants.size}/${event.maxParticipants})",
+                        text = stringResource(
+                            R.string.my_events_participants_header,
+                            event.participants.size,
+                            event.maxParticipants
+                        ),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Icon(
                         imageVector = if (showParticipants) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (showParticipants) "Hide Participants" else "Show Participants",
+                        contentDescription = stringResource(
+                            if (showParticipants) R.string.my_events_cd_hide_participants
+                            else R.string.my_events_cd_show_participants
+                        ),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -461,7 +470,7 @@ fun MyCreatedEventCard(
                                 ) {
                                     AsyncImage(
                                         model = profile.profileImageUrl,
-                                        contentDescription = "Creator Profile",
+                                        contentDescription = stringResource(R.string.my_events_cd_creator_profile),
                                         modifier = Modifier
                                             .size(40.dp)
                                             .clip(CircleShape),
@@ -473,7 +482,7 @@ fun MyCreatedEventCard(
                                             style = MaterialTheme.typography.titleMedium
                                         )
                                         Text(
-                                            text = "Event Owner",
+                                            text = stringResource(R.string.my_events_event_owner),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )
@@ -501,7 +510,7 @@ fun MyCreatedEventCard(
                                     ) {
                                         AsyncImage(
                                             model = profile.profileImageUrl,
-                                            contentDescription = "Participant Profile",
+                                            contentDescription = stringResource(R.string.my_events_cd_participant_profile),
                                             modifier = Modifier
                                                 .size(40.dp)
                                                 .clip(CircleShape),
@@ -513,7 +522,7 @@ fun MyCreatedEventCard(
                                                 style = MaterialTheme.typography.titleMedium
                                             )
                                             Text(
-                                                text = "Participants",
+                                                text = stringResource(R.string.my_events_participants_label),
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -533,11 +542,11 @@ fun MyCreatedEventCard(
                                                 containerColor = MaterialTheme.colorScheme.primary
                                             )
                                         ) {
-                                            Text("Evaluate")
+                                            Text(stringResource(R.string.my_events_evaluate))
                                         }
                                     } else if (isEventPassed && reviewedParticipants.contains(participantId)) {
                                         Text(
-                                            text = "Evaluated",
+                                            text = stringResource(R.string.my_events_evaluated),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -556,7 +565,7 @@ fun MyCreatedEventCard(
         AlertDialog(
             containerColor = MaterialTheme.colorScheme.secondaryContainer,
             onDismissRequest = { expandedRequesterId = null },
-            title = { Text("Participation Requests") },
+            title = { Text(stringResource(R.string.my_events_participation_requests)) },
             text = {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -591,7 +600,7 @@ fun MyCreatedEventCard(
                                             style = MaterialTheme.typography.bodyMedium
                                         )
                                         Text(
-                                            text = "${profile.age} age",
+                                            text = stringResource(R.string.my_events_age_format, profile.age),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -608,7 +617,7 @@ fun MyCreatedEventCard(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
-                                            contentDescription = "Approve",
+                                            contentDescription = stringResource(R.string.my_events_cd_approve),
                                             tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
@@ -620,7 +629,7 @@ fun MyCreatedEventCard(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
-                                            contentDescription = "Reject",
+                                            contentDescription = stringResource(R.string.my_events_cd_reject),
                                             tint = MaterialTheme.colorScheme.error
                                         )
                                     }
@@ -634,7 +643,7 @@ fun MyCreatedEventCard(
                 TextButton(
                     onClick = { expandedRequesterId = null }
                 ) {
-                    Text("Close")
+                    Text(stringResource(R.string.my_events_dialog_close))
                 }
             }
         )
@@ -683,7 +692,7 @@ fun MyParticipatedEventsList(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text("You haven't attended any events yet.")
+                Text(stringResource(R.string.my_events_no_attended))
             }
         } else {
             LazyColumn(
@@ -873,7 +882,10 @@ fun MyParticipatedEventCard(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = if (isEventEnded) "Past Event" else "Active Event",
+                                text = stringResource(
+                                    if (isEventEnded) R.string.my_events_status_past
+                                    else R.string.my_events_status_active
+                                ),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -910,7 +922,10 @@ fun MyParticipatedEventCard(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = if (hasReviewed) "Reviewed" else "Review",
+                                    text = stringResource(
+                                        if (hasReviewed) R.string.my_events_reviewed
+                                        else R.string.my_events_review
+                                    ),
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
@@ -972,7 +987,10 @@ fun MyParticipatedEventCard(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = if (isEventEnded) "Past Event" else "Active Event",
+                                    text = stringResource(
+                                        if (isEventEnded) R.string.my_events_status_past
+                                        else R.string.my_events_status_active
+                                    ),
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
@@ -1007,7 +1025,7 @@ fun MyParticipatedEventCard(
                     ) {
                         AsyncImage(
                             model = creatorProfile?.profileImageUrl,
-                            contentDescription = "Creator Profile",
+                            contentDescription = stringResource(R.string.my_events_cd_creator_profile),
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape),
@@ -1015,11 +1033,11 @@ fun MyParticipatedEventCard(
                         )
                         Column {
                             Text(
-                                text = creatorProfile?.username ?: "Loading...",
+                                text = creatorProfile?.username ?: stringResource(R.string.loading),
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = "Event Owner",
+                                text = stringResource(R.string.my_events_event_owner),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1027,7 +1045,7 @@ fun MyParticipatedEventCard(
                     }
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Profili Gör",
+                        contentDescription = stringResource(R.string.my_events_cd_view_profile),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1074,7 +1092,7 @@ fun MyParticipatedEventCard(
                         )
                         LocationText(
                             latLng = LatLng(event.latitude, event.longitude),
-                            apiKey = Config.MAPS_API_KEY,
+                            apiKey = BuildConfig.MAPS_API_KEY,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -1091,7 +1109,11 @@ fun MyParticipatedEventCard(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "${event.participants.size}/${event.maxParticipants} participant",
+                            text = stringResource(
+                                R.string.my_events_participant_summary,
+                                event.participants.size,
+                                event.maxParticipants
+                            ),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -1109,11 +1131,11 @@ fun MyParticipatedEventCard(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Review the event owner")
+                        Text(stringResource(R.string.my_events_review_owner))
                     }
                 } else if (isEventEnded && !isEventOwner && hasReviewed) {
                     Text(
-                        text = "You have reviewed this event",
+                        text = stringResource(R.string.my_events_already_reviewed),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.CenterHorizontally)

@@ -5,17 +5,26 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Crashlytics symbol/line bilgilerini koru
+-keepattributes SourceFile,LineNumberTable
+-keep public class * extends java.lang.Exception
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Firebase modelleri (Firestore data binding icin field/constructor reflection)
+-keep class com.emreyildirim.matchhuntv1.data.model.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Release build'inde Log.d / Log.v / Log.i cagrilarini tamamen kaldir.
+# Log.w ve Log.e production'da kalmaya devam eder (Crashlytics icin onemli).
+-assumenosideeffects class android.util.Log {
+    public static int d(...);
+    public static int v(...);
+    public static int i(...);
+    public static boolean isLoggable(java.lang.String, int);
+}
+
+# println / System.out kullanimlarini da release'de kaldir.
+-assumenosideeffects class java.io.PrintStream {
+    public void println(%);
+    public void println(**);
+    public void print(%);
+    public void print(**);
+}

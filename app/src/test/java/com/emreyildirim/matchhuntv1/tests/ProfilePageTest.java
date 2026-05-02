@@ -6,12 +6,10 @@ import com.emreyildirim.matchhuntv1.pages.LoginPage;
 import com.emreyildirim.matchhuntv1.pages.NavigationMenu;
 import com.emreyildirim.matchhuntv1.pages.ProfilePage;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
-import io.appium.java_client.AppiumBy;
 
-public class LogoutTest extends BaseTest {
+public class ProfilePageTest extends BaseTest {
 
     @Test
     public void validLogoutTest(){
@@ -21,7 +19,7 @@ public class LogoutTest extends BaseTest {
 
 
         loginPage.givePermission();
-        loginPage.validLoginTest(TestSecrets.getUsername(), TestSecrets.getPassword());
+        loginPage.validLogin(TestSecrets.getUsername(), TestSecrets.getPassword());
         navigationMenu.goToProfile();
         profilePage.logout();
 

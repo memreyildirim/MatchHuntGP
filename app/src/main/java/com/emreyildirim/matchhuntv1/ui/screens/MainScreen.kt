@@ -20,7 +20,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.emreyildirim.matchhuntv1.R
 import androidx.navigation.NavController
 import androidx.navigation.compose.*
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,11 +44,10 @@ fun MainScreen(rootNavController: NavController) {
     val messageViewModel: MessageViewModel = viewModel() // Paylaşılan instance
 
     val screens = listOf(
-        BottomNavItem("social", Icons.Outlined.Public, "Social"),
-        BottomNavItem("events", Icons.Outlined.Search, "Search"),
-        // Tavsiye: EmojiEvents (Kupa) spor ve başarı hissi verir
-        BottomNavItem("my_events", Icons.Outlined.EmojiEvents, "Events"),
-        BottomNavItem("profile", Icons.Outlined.Person, "Profile")
+        BottomNavItem("social", Icons.Outlined.Public, stringResource(R.string.bottom_nav_social)),
+        BottomNavItem("events", Icons.Outlined.Search, stringResource(R.string.bottom_nav_search)),
+        BottomNavItem("my_events", Icons.Outlined.EmojiEvents, stringResource(R.string.bottom_nav_events)),
+        BottomNavItem("profile", Icons.Outlined.Person, stringResource(R.string.bottom_nav_profile))
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -59,7 +60,9 @@ fun MainScreen(rootNavController: NavController) {
             NavHost(
                 navController = bottomNavController,
                 startDestination = "social",
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
             ) {
                 composable("social") {
                     SocialFeedScreen(
@@ -176,7 +179,7 @@ fun ModernLightSlidingBar(
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     Icon(
-                                        imageVector = if (isSelected) getFilledIcon(screen.label) else screen.icon,
+                                        imageVector = if (isSelected) getFilledIcon(screen.route) else screen.icon,
                                         contentDescription = screen.label,
                                         modifier = Modifier.size(24.dp),
                                         tint = if (isSelected) ContentBlack else MutedGray
@@ -204,12 +207,12 @@ fun ModernLightSlidingBar(
     }
 }
 
-fun getFilledIcon(label: String): ImageVector {
-    return when(label) {
-        "Social" -> Icons.Filled.Public
-        "Search" -> Icons.Filled.Search
-        "Events" -> Icons.Filled.EmojiEvents // Tavsiye edilen kupa ikonu
-        "Profile" -> Icons.Filled.Person
+fun getFilledIcon(route: String): ImageVector {
+    return when (route) {
+        "social" -> Icons.Filled.Public
+        "events" -> Icons.Filled.Search
+        "my_events" -> Icons.Filled.EmojiEvents
+        "profile" -> Icons.Filled.Person
         else -> Icons.Filled.Home
     }
 }
