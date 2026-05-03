@@ -1,7 +1,6 @@
 package com.emreyildirim.matchhuntv1.ui.viewmodel
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,11 +12,14 @@ import com.emreyildirim.matchhuntv1.utils.ChatUtils
 import com.emreyildirim.matchhuntv1.utils.NetworkUtils
 import com.emreyildirim.matchhuntv1.utils.withNetworkTimeout
 import com.google.firebase.auth.FirebaseAuth
+import com.emreyildirim.matchhuntv1.data.model.Conversation as DbConversation
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -144,16 +146,33 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                     if (BuildConfig.DEBUG) Log.d(TAG, "Message added optimistically")
                 }
 
-                // Mesajı Firestore'a kaydet
+                // BATCH WRITE: Mesajı kaydet ve konuşma özetini güncelle
+                val batch = firestore.batch()
+                
+                val messageRef = firestore.collection("messages").document(message.id)
+                batch.set(messageRef, message)
+                
+                val conversationRef = firestore.collection("conversations").document(chatId)
+                
+                // 1. Önce dökümanın varlığını ve katılımcıları garanti et (merge ile)
+                batch.set(conversationRef, mapOf(
+                    "participants" to listOf(currentUserId, targetUserId).sorted()
+                ), SetOptions.merge())
+                
+                // 2. Nokta notasyonu ile Map içindeki alanları GÜNCELLE (update ile nokta ayracı çalışır)
+                batch.update(conversationRef, mapOf(
+                    "lastMessage" to text,
+                    "lastMessageSenderId" to currentUserId,
+                    "lastMessageTimestamp" to message.timestamp,
+                    "unreadCounts.$targetUserId" to FieldValue.increment(1),
+                    "unreadCounts.$currentUserId" to 0
+                ))
+
                 withNetworkTimeout {
-                    firestore.collection("messages")
-                        .document(message.id)
-                        .set(message)
-                        .await()
+                    batch.commit().await()
                 }
 
-                // Konuşma listesini güncelle
-                updateConversationList(message)
+                if (BuildConfig.DEBUG) Log.d(TAG, "Message and conversation summary updated")
             } catch (e: Exception) {
                 _error.value = NetworkUtils.getErrorMessage(e)
                 if (BuildConfig.DEBUG) Log.e(TAG, "sendMessage error", e)
@@ -323,8 +342,11 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 }
 
                 // Eski mesajlar listenin başına ekleniyor (UI hala eski → yeni gösterir)
-                val currentMessages = _messages.value.toMutableList()
-                _messages.value = olderMessages.reversed() + currentMessages
+                val currentMessages = _messages.value
+                val combinedMessages = (olderMessages.reversed() + currentMessages)
+                    .distinctBy { it.id }
+                
+                _messages.value = combinedMessages
 
                 // Pagination için kontrol et
                 hasMoreMessages = (sentSnapshot.size() >= pageSize || receivedSnapshot.size() >= pageSize)
@@ -388,88 +410,48 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                 _error.value = null
                 val currentUserId = auth.currentUser?.uid ?: return@launch
                 
-                // Gizlenen konuşmaları yükle
                 val hiddenConversations = getHiddenConversations()
                 
-                if (BuildConfig.DEBUG) Log.d(TAG, "Loading conversations, hidden count: ${hiddenConversations.size}")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Loading optimized conversations")
 
-                // Kullanıcının tüm mesajlarını getir
-                val messagesSnapshot = withNetworkTimeout {
-                    firestore.collection("messages")
-                        .whereEqualTo("senderId", currentUserId)
+                // 1. Konuşma özetlerini getir (Tek sorgu!)
+                val snapshot = withNetworkTimeout {
+                    firestore.collection("conversations")
+                        .whereArrayContains("participants", currentUserId)
+                        .orderBy("lastMessageTimestamp", Query.Direction.DESCENDING)
                         .get()
                         .await()
                 }
 
-                val sentMessages = messagesSnapshot.documents.mapNotNull { doc ->
-                    Message.fromFirestore(doc)
+                val firestoreConvs = snapshot.documents.mapNotNull { 
+                    DbConversation.fromFirestore(it)
                 }
 
-                val receivedMessagesSnapshot = withNetworkTimeout {
-                    firestore.collection("messages")
-                        .whereEqualTo("receiverId", currentUserId)
-                        .get()
-                        .await()
-                }
-
-                val receivedMessages = receivedMessagesSnapshot.documents.mapNotNull { doc ->
-                    Message.fromFirestore(doc)
-                }
-
-                // Tüm mesajları birleştir ve timestamp'e göre sırala
-                val allMessages = (sentMessages + receivedMessages).sortedBy { it.timestamp }
-
-                // Her kullanıcı için son mesajı bul
-                val conversationsMap = mutableMapOf<String, Conversation>()
-                
-                for (message in allMessages) {
-                    val otherUserId = if (message.senderId == currentUserId) message.receiverId else message.senderId
+                // 2. UI modellerine dönüştür (Gerekli profilleri çek)
+                val conversationList = firestoreConvs.mapNotNull { fConv ->
+                    val otherUserId = fConv.participants.firstOrNull { it != currentUserId } ?: return@mapNotNull null
                     
-                    // GİZLENEN KONUŞMALARI ATLA - Profil sorgusu yapma, işleme alma
-                    if (otherUserId in hiddenConversations) {
-                        continue // Bu kullanıcıyla ilgili hiçbir şey yapma
-                    }
-                    
-                    if (!conversationsMap.containsKey(otherUserId)) {
-                        // Sadece gizlenmemiş kullanıcılar için profil sorgusu yap
-                        val userDoc = firestore.collection("users")
-                            .document(otherUserId)
-                            .get()
-                            .await()
-                        
-                        val userProfile = userDoc.toObject(UserProfile::class.java)
-                        
-                        if (userProfile != null) {
-                            conversationsMap[otherUserId] = Conversation(
-                                userId = otherUserId,
-                                userProfile = userProfile,
-                                lastMessage = message
-                            )
-                        }
-                    } else {
-                        // Son mesajı güncelle - mesajlar sıralı olduğu için her zaman en son mesajı al
-                        val conversation = conversationsMap[otherUserId]
-                        if (conversation != null) {
-                            conversationsMap[otherUserId] = conversation.copy(lastMessage = message)
-                        }
-                    }
+                    if (otherUserId in hiddenConversations) return@mapNotNull null
+
+                    // Profil bilgisini getir
+                    val userDoc = firestore.collection("users").document(otherUserId).get().await()
+                    val userProfile = userDoc.toObject(UserProfile::class.java) ?: return@mapNotNull null
+
+                    Conversation(
+                        userId = otherUserId,
+                        userProfile = userProfile,
+                        lastMessage = Message(
+                            text = fConv.lastMessage,
+                            timestamp = fConv.lastMessageTimestamp,
+                            senderId = fConv.lastMessageSenderId,
+                            chatId = fConv.id
+                        ),
+                        unreadCount = (fConv.unreadCounts[currentUserId] ?: 0L).toInt()
+                    )
                 }
 
-                // Her konuşma için okunmamış mesaj sayısını hesapla
-                // (Gizlenenler zaten conversationsMap'te yok, bu yüzden otomatik filtrelenmiş)
-                val conversationsWithUnread = conversationsMap.values.map { conversation ->
-                    val userMessages = allMessages.filter { message ->
-                        val otherUserId = if (message.senderId == currentUserId) message.receiverId else message.senderId
-                        otherUserId == conversation.userId
-                    }
-                    val unreadCount = calculateUnreadCount(userMessages, currentUserId, conversation.userId)
-                    conversation.copy(unreadCount = unreadCount)
-                }
-
-                // Konuşmaları son mesaj zamanına göre sırala
-                _conversations.value = conversationsWithUnread.sortedByDescending { it.lastMessage?.timestamp }
-
-                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${_conversations.value.size} visible conversations")
+                _conversations.value = conversationList.distinctBy { it.userId }
+                if (BuildConfig.DEBUG) Log.d(TAG, "Loaded ${_conversations.value.size} conversations")
             } catch (e: Exception) {
                 _error.value = NetworkUtils.getErrorMessage(e)
                 if (BuildConfig.DEBUG) Log.e(TAG, "loadConversations error", e)
@@ -629,90 +611,74 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
     // Konuşma listesi için gerçek zamanlı dinleyici
     fun startConversationListener() {
         val currentUserId = auth.currentUser?.uid ?: return
-
-        // Önce mevcut listener'ları temizle
         stopConversationListeners()
 
         try {
-            var isInitialSnapshotSent = true
-            var isInitialSnapshotReceived = true
-            
-            // Gönderilen mesajları dinle
-            val sentListener = firestore.collection("messages")
-                .whereEqualTo("senderId", currentUserId)
+            val registration = firestore.collection("conversations")
+                .whereArrayContains("participants", currentUserId)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
-                        _error.value = "Konuşmalar dinlenirken bir hata oluştu: ${error.message}"
-                        if (BuildConfig.DEBUG) Log.e(TAG, "Conversation listener error (sent)", error)
+                        if (BuildConfig.DEBUG) Log.e(TAG, "Conversation listener error", error)
                         return@addSnapshotListener
                     }
 
-                    snapshot?.let { documents ->
-                        try {
-                            // İlk snapshot'ı atla (tüm mesajlar zaten yüklü)
-                            if (isInitialSnapshotSent) {
-                                isInitialSnapshotSent = false
-                                return@addSnapshotListener
-                            }
+                    snapshot?.let { docs ->
+                        viewModelScope.launch {
+                            val hiddenConversations = getHiddenConversations()
+                            val currentList = _conversations.value.toMutableList()
+                            var changed = false
                             
-                            // Sadece yeni eklenen mesajları işle
-                            val newMessages = documents.documentChanges
-                                .filter { it.type == DocumentChange.Type.ADDED }
-                                .mapNotNull { change ->
-                                    Message.fromFirestore(change.document)
+                            for (change in docs.documentChanges) {
+                                val fConv = DbConversation.fromFirestore(change.document) ?: continue
+                                val otherUserId = fConv.participants.firstOrNull { it != currentUserId } ?: continue
+                                
+                                if (otherUserId in hiddenConversations) continue
+
+                                when (change.type) {
+                                    DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
+                                        val existing = currentList.find { it.userId == otherUserId }
+                                        val userProfile = existing?.userProfile ?: run {
+                                            firestore.collection("users").document(otherUserId).get().await()
+                                                .toObject(UserProfile::class.java)
+                                        } ?: continue
+
+                                        val updatedConv = Conversation(
+                                            userId = otherUserId,
+                                            userProfile = userProfile,
+                                            lastMessage = Message(
+                                                text = fConv.lastMessage,
+                                                timestamp = fConv.lastMessageTimestamp,
+                                                senderId = fConv.lastMessageSenderId,
+                                                chatId = fConv.id
+                                            ),
+                                            unreadCount = (fConv.unreadCounts[currentUserId] ?: 0L).toInt()
+                                        )
+                                        
+                                        val index = currentList.indexOfFirst { it.userId == otherUserId }
+                                        if (index != -1) {
+                                            currentList[index] = updatedConv
+                                        } else {
+                                            currentList.add(updatedConv)
+                                        }
+                                        changed = true
+                                    }
+                                    DocumentChange.Type.REMOVED -> {
+                                        if (currentList.removeAll { it.userId == otherUserId }) {
+                                            changed = true
+                                        }
+                                    }
                                 }
-                            
-                            if (newMessages.isNotEmpty()) {
-                                if (BuildConfig.DEBUG) Log.d(TAG, "Got ${newMessages.size} new sent messages")
-                                updateConversationsWithNewMessages(newMessages)
                             }
-                        } catch (e: Exception) {
-                            if (BuildConfig.DEBUG) Log.e(TAG, "Error processing sent messages", e)
+                            if (changed) {
+                                _conversations.value = currentList.distinctBy { it.userId }
+                                    .sortedByDescending { it.lastMessage?.timestamp }
+                            }
                         }
                     }
                 }
-            conversationListenerRegistrations.add(sentListener)
-
-            // Alınan mesajları dinle
-            val receivedListener = firestore.collection("messages")
-                .whereEqualTo("receiverId", currentUserId)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        _error.value = "Konuşmalar dinlenirken bir hata oluştu: ${error.message}"
-                        if (BuildConfig.DEBUG) Log.e(TAG, "Conversation listener error (received)", error)
-                        return@addSnapshotListener
-                    }
-
-                    snapshot?.let { documents ->
-                        try {
-                            // İlk snapshot'ı atla (tüm mesajlar zaten yüklü)
-                            if (isInitialSnapshotReceived) {
-                                isInitialSnapshotReceived = false
-                                return@addSnapshotListener
-                            }
-                            
-                            // Sadece yeni eklenen mesajları işle
-                            val newMessages = documents.documentChanges
-                                .filter { it.type == DocumentChange.Type.ADDED }
-                                .mapNotNull { change ->
-                                    Message.fromFirestore(change.document)
-                                }
-                            
-                            if (newMessages.isNotEmpty()) {
-                                if (BuildConfig.DEBUG) Log.d(TAG, "Got ${newMessages.size} new received messages")
-                                updateConversationsWithNewMessages(newMessages)
-                            }
-                        } catch (e: Exception) {
-                            if (BuildConfig.DEBUG) Log.e(TAG, "Error processing received messages", e)
-                        }
-                    }
-                }
-            conversationListenerRegistrations.add(receivedListener)
-
-            if (BuildConfig.DEBUG) Log.d(TAG, "Conversation listeners started")
+            conversationListenerRegistrations.add(registration)
         } catch (e: Exception) {
-            _error.value = "Konuşma dinleyicisi başlatılırken bir hata oluştu: ${e.message}"
-            if (BuildConfig.DEBUG) Log.e(TAG, "Error starting conversation listeners", e)
+            if (BuildConfig.DEBUG) Log.e(TAG, "Error starting conversation listener", e)
         }
     }
 
@@ -723,157 +689,45 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
         if (BuildConfig.DEBUG) Log.d(TAG, "Conversation listeners stopped")
     }
 
-    private fun updateConversationsWithNewMessages(newMessages: List<Message>) {
-        viewModelScope.launch {
-            try {
-                val currentUserId = auth.currentUser?.uid ?: return@launch
-                val hiddenConversations = getHiddenConversations()
-                val currentConversations = _conversations.value.toMutableList()
-                val conversationsMap = currentConversations.associateBy { it.userId }.toMutableMap()
 
-                // Yeni mesajları timestamp'e göre sırala
-                val sortedNewMessages = newMessages.sortedBy { it.timestamp }
-
-                for (message in sortedNewMessages) {
-                    val otherUserId = if (message.senderId == currentUserId) message.receiverId else message.senderId
-                    
-                    // YENİ MESAJ GELEN KONUŞMALAR İÇİN GİZLEMEYİ KALDIR
-                    if (otherUserId in hiddenConversations) {
-                        // Yeni mesaj geldi, gizlemeyi kaldır
-                        unhideConversation(otherUserId)
-                        // hiddenConversations'ı güncelle
-                        val updatedHidden = getHiddenConversations()
-                        // Artık gizlenmemiş, devam et
-                    }
-                    
-                    // Gizlenen konuşmalar için profil sorgusu yapma
-                    if (otherUserId in getHiddenConversations()) {
-                        continue
-                    }
-                    
-                    if (!conversationsMap.containsKey(otherUserId)) {
-                        // Yeni konuşma - kullanıcı profilini getir
-                        val userDoc = firestore.collection("users")
-                            .document(otherUserId)
-                            .get()
-                            .await()
-                        
-                        val userProfile = userDoc.toObject(UserProfile::class.java)
-                        
-                        if (userProfile != null) {
-                            // Firestore rules ile uyumlu: senderId ve receiverId kullan
-                            val sentMessagesQuery = firestore.collection("messages")
-                                .whereEqualTo("senderId", currentUserId)
-                                .whereEqualTo("receiverId", otherUserId)
-                                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING)
-                                .get()
-                                .await()
-
-                            val receivedMessagesQuery = firestore.collection("messages")
-                                .whereEqualTo("senderId", otherUserId)
-                                .whereEqualTo("receiverId", currentUserId)
-                                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING)
-                                .get()
-                                .await()
-
-                            // Tüm mesajları birleştir
-                            val userMessages = (sentMessagesQuery.documents + receivedMessagesQuery.documents)
-                                .mapNotNull { doc -> Message.fromFirestore(doc) }
-                                .distinctBy { it.id }
-                                .sortedBy { it.timestamp }
-
-                            // En son mesajı bul
-                            val lastMessage = userMessages.maxByOrNull { it.timestamp }
-
-                            conversationsMap[otherUserId] = Conversation(
-                                userId = otherUserId,
-                                userProfile = userProfile,
-                                lastMessage = lastMessage,
-                                unreadCount = calculateUnreadCount(userMessages, currentUserId, otherUserId)
-                            )
-                        }
-                    } else {
-                        // Mevcut konuşma - sadece son mesajı güncelle (performans için)
-                        val conversation = conversationsMap[otherUserId]
-                        if (conversation != null) {
-                            val shouldUpdate = conversation.lastMessage == null || 
-                                conversation.lastMessage?.timestamp?.before(message.timestamp) == true
-                            
-                            if (shouldUpdate) {
-                                // Sadece yeni mesajı kullan, tüm mesajları tekrar çekme
-                                val existingUnreadCount = conversation.unreadCount
-                                val newUnreadCount = if (message.receiverId == currentUserId && !message.isRead) {
-                                    existingUnreadCount + 1
-                                } else if (message.senderId == currentUserId) {
-                                    // Kendi gönderdiğimiz mesaj - unread count'u sıfırla (okundu sayılır)
-                                    0
-                                } else {
-                                    existingUnreadCount
-                                }
-                                
-                                conversationsMap[otherUserId] = conversation.copy(
-                                    lastMessage = message,
-                                    unreadCount = newUnreadCount
-                                )
-                                if (BuildConfig.DEBUG) Log.d(TAG, "Conversation updated with a new message")
-                            }
-                        }
-                    }
-                }
-
-                // Gizlenen konuşmaları filtrele (güncel listeyi al)
-                val updatedHiddenConversations = getHiddenConversations()
-                val visibleConversations = conversationsMap.values.filter { 
-                    it.userId !in updatedHiddenConversations 
-                }
-
-                // Konuşmaları son mesaj zamanına göre sırala
-                _conversations.value = visibleConversations.sortedByDescending { it.lastMessage?.timestamp }
-                if (BuildConfig.DEBUG) Log.d(TAG, "Conversations updated: ${_conversations.value.size}")
-            } catch (e: Exception) {
-                if (BuildConfig.DEBUG) Log.e(TAG, "Error updating conversations", e)
-            }
-        }
-    }
 
     // Mesajları okundu olarak işaretle
     fun markMessagesAsRead(targetUserId: String) {
         viewModelScope.launch {
             try {
                 val currentUserId = auth.currentUser?.uid ?: return@launch
+                val chatId = ChatUtils.getChatId(currentUserId, targetUserId)
                 val currentTime = Date()
 
-                // Alınan ve okunmamış mesajları bul
-                val unreadMessages = firestore.collection("messages")
+                // Okunmamış mesajları bul
+                val unreadSnapshot = firestore.collection("messages")
                     .whereEqualTo("senderId", targetUserId)
                     .whereEqualTo("receiverId", currentUserId)
                     .whereEqualTo("isRead", false)
                     .get()
                     .await()
 
-                // Her mesajı okundu olarak işaretle
-                for (doc in unreadMessages.documents) {
-                    firestore.collection("messages")
-                        .document(doc.id)
-                        .update(mapOf(
+                val batch = firestore.batch()
+                
+                // Mesajları okundu işaretle (Eğer varsa)
+                if (!unreadSnapshot.isEmpty) {
+                    for (doc in unreadSnapshot.documents) {
+                        batch.update(doc.reference, mapOf(
                             "isRead" to true,
                             "readAt" to currentTime
                         ))
-                        .await()
+                    }
                 }
 
-                // Son okuma zamanını lastRead koleksiyonunda güncelle
-                firestore.collection("lastRead")
-                    .document("${currentUserId}_${targetUserId}")
-                    .set(mapOf(
-                        "userId" to currentUserId,
-                        "targetUserId" to targetUserId,
-                        "timestamp" to currentTime
-                    ))
-                    .await()
+                // Konuşma özetindeki okunmamış sayısını HER DURUMDA sıfırla
+                val conversationRef = firestore.collection("conversations").document(chatId)
+                batch.update(conversationRef, "unreadCounts.$currentUserId", 0)
 
-                // Konuşma listesini güncelle
-                updateConversationList(targetUserId)
+                withNetworkTimeout {
+                    batch.commit().await()
+                }
+
+                if (BuildConfig.DEBUG) Log.d(TAG, "Unread count reset for $chatId")
             } catch (e: Exception) {
                 if (BuildConfig.DEBUG) Log.e(TAG, "markMessagesAsRead error", e)
             }
@@ -881,99 +735,9 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
     }
 
     // Okunmamış mesaj sayısını hesapla
-    private suspend fun calculateUnreadCount(messages: List<Message>, currentUserId: String, targetUserId: String): Int {
-        try {
-            // Son okuma zamanını lastRead koleksiyonundan getir
-            val lastReadDoc = firestore.collection("lastRead")
-                .document("${currentUserId}_${targetUserId}")
-                .get()
-                .await()
 
-            val lastReadTime = if (lastReadDoc.exists()) {
-                lastReadDoc.getTimestamp("timestamp")?.toDate()
-            } else {
-                null
-            }
 
-            // Son okuma zamanından sonraki mesajları say
-            return messages.count { message ->
-                message.receiverId == currentUserId && 
-                message.senderId == targetUserId &&
-                (lastReadTime == null || message.timestamp.after(lastReadTime))
-            }
-        } catch (e: Exception) {
-            if (BuildConfig.DEBUG) Log.e(TAG, "calculateUnreadCount error", e)
-            return 0
-        }
-    }
 
-    private fun updateConversationList(targetUserId: String) {
-        viewModelScope.launch {
-            try {
-                val currentUserId = auth.currentUser?.uid ?: return@launch
-
-                // Kullanıcı profilini getir
-                val userDoc = firestore.collection("users")
-                    .document(targetUserId)
-                    .get()
-                    .await()
-
-                val userProfile = userDoc.toObject(UserProfile::class.java)
-
-                if (userProfile != null) {
-                    // Son okuma zamanını getir
-                    val lastReadDoc = firestore.collection("lastRead")
-                        .document("${currentUserId}_${targetUserId}")
-                        .get()
-                        .await()
-
-                    val lastReadTime = if (lastReadDoc.exists()) {
-                        lastReadDoc.getTimestamp("timestamp")?.toDate()
-                    } else {
-                        null
-                    }
-
-                    // Son okuma zamanından sonraki mesajları getir
-                    val query = firestore.collection("messages")
-                        .whereEqualTo("senderId", targetUserId)
-                        .whereEqualTo("receiverId", currentUserId)
-                        .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                        .limit(1)
-
-                    if (lastReadTime != null) {
-                        query.whereGreaterThan("timestamp", lastReadTime)
-                    }
-
-                    val messagesSnapshot = query.get().await()
-                    val lastMessage = messagesSnapshot.documents.firstOrNull()?.let { doc ->
-                        Message.fromFirestore(doc)
-                    }
-
-                    val unreadCount = messagesSnapshot.size()
-
-                    val updatedConversation = Conversation(
-                        userId = targetUserId,
-                        userProfile = userProfile,
-                        lastMessage = lastMessage,
-                        unreadCount = unreadCount
-                    )
-
-                    val currentConversations = _conversations.value.toMutableList()
-                    val index = currentConversations.indexOfFirst { it.userId == targetUserId }
-                    
-                    if (index != -1) {
-                        currentConversations[index] = updatedConversation
-                    } else {
-                        currentConversations.add(updatedConversation)
-                    }
-
-                    _conversations.value = currentConversations.sortedByDescending { it.lastMessage?.timestamp }
-                }
-            } catch (e: Exception) {
-                if (BuildConfig.DEBUG) Log.e(TAG, "updateConversationList(targetUserId) error", e)
-            }
-        }
-    }
 
     // ViewModel temizlendiğinde listener'ları durdur
     override fun onCleared() {
