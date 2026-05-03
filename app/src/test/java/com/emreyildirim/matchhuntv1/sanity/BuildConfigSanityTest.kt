@@ -6,11 +6,7 @@ import org.testng.Assert.assertFalse
 import org.testng.Assert.assertTrue
 import org.testng.annotations.Test
 
-/**
- * Release oncesi calismasi gereken minimum sanity testleri.
- * Bu testler asla bir Firebase / Android Context dependency'sine ihtiyac duymaz,
- * her zaman JVM uzerinde calisir ve CI gate'inde "yesil" olmasi sart.
- */
+
 class BuildConfigSanityTest {
 
     @Test
