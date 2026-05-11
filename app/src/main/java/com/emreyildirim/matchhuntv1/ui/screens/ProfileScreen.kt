@@ -1,5 +1,7 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -20,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -331,6 +334,42 @@ fun ProfileScreen(navController: NavController) {
                             }
                         )
                     }
+                }
+
+                // Minimal Footer Section
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 40.dp, bottom = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.privacy_policy),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.Gray.copy(alpha = 0.7f),
+                            modifier = Modifier.clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://gist.github.com/memreyildirim/13ef72599604ee61e631d12781ad55bf"))
+                                context.startActivity(intent)
+                            }
+                        )
+                        Text("|", color = Color.LightGray)
+                        Text(
+                            text = stringResource(R.string.terms_of_service),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.Gray.copy(alpha = 0.7f),
+                            modifier = Modifier.clickable { /* Terms link */ }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "MatchHunt v1.0",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.LightGray
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(120.dp))
