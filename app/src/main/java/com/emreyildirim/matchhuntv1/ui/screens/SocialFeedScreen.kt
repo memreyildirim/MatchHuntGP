@@ -158,7 +158,6 @@ fun SocialFeedScreen(
                 contentColor = MaterialTheme.colorScheme.primary,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
-                    .padding(bottom = 85.dp)
                     .navigationBarsPadding()
             ) {
                 Icon(Icons.Default.Add, stringResource(R.string.cd_create_post_fab), modifier = Modifier.size(28.dp))
