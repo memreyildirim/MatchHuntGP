@@ -462,6 +462,9 @@ fun ProfileScreen(navController: NavController) {
                                 post = post,
                                 postRepository = postRepository,
                                 currentUserId = userId,
+                                onNavigateToProfile = { targetUserId ->
+                                    navController.navigate("user_profile/$targetUserId")
+                                },
                                 onPostDeleted = { deletedPostId ->
                                     // Optimistic update - hemen UI'dan kaldır
                                     userPosts = userPosts.filter { it.id != deletedPostId }
@@ -770,6 +773,7 @@ fun PostDetailCard(
     post: Post,
     postRepository: PostRepository,
     currentUserId: String,
+    onNavigateToProfile: (String) -> Unit = {},
     postViewModel: PostViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onPostDeleted: (String) -> Unit = {}
 ) {
@@ -1030,7 +1034,8 @@ fun PostDetailCard(
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSurface,
                                             fontSize = 13.sp
-                                        )
+                                        ),
+                                        modifier = Modifier.clickable { onNavigateToProfile(comment.userId) }
                                     )
                                     Text(
                                         text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(comment.createdAt),

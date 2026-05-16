@@ -169,6 +169,9 @@ fun AppNavigation() {
                 onNavigateBack = {
                     navController.navigateUp()
                 },
+                onNavigateToProfile = { targetUserId ->
+                    navController.navigate("user_profile/$targetUserId")
+                },
                 targetUserId = userId,
                 viewModel = messageViewModel
             )

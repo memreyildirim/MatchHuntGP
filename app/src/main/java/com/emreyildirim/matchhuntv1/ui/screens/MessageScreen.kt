@@ -54,6 +54,7 @@ sealed class MessageListItem {
 @Composable
 fun MessageScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToProfile: (String) -> Unit = {},
     targetUserId: String? = null,
     viewModel: MessageViewModel,
     reportViewModel: ReportViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
@@ -139,7 +140,10 @@ fun MessageScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { targetUserId?.let { onNavigateToProfile(it) } }
+                    ) {
                         Surface(
                             modifier = Modifier.size(38.dp),
                             shape = CircleShape,
