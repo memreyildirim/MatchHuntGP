@@ -72,13 +72,7 @@ class SocialFeedViewModel(
                     repository.getPostsPaginated()
                 }
                     .onSuccess { (posts, hasMore) ->
-                        val currentUserId = auth.currentUser?.uid
-                        val filteredPosts = if (currentUserId != null) {
-                            posts.filter { it.userId != currentUserId }
-                        } else {
-                            posts
-                        }
-                        _posts.value = filteredPosts
+                        _posts.value = posts
                         _hasMorePosts.value = hasMore
                         isInitialLoadDone = true
                     }
@@ -111,13 +105,7 @@ class SocialFeedViewModel(
                     repository.getPostsPaginated(lastPost)
                 }
                     .onSuccess { (newPosts, hasMore) ->
-                        val currentUserId = auth.currentUser?.uid
-                        val filteredNewPosts = if (currentUserId != null) {
-                            newPosts.filter { it.userId != currentUserId }
-                        } else {
-                            newPosts
-                        }
-                        _posts.value = _posts.value + filteredNewPosts
+                        _posts.value = _posts.value + newPosts
                         _hasMorePosts.value = hasMore
                     }
                     .onFailure { e ->
