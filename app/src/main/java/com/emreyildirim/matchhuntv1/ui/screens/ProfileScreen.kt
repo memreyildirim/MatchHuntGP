@@ -594,7 +594,7 @@ fun SportsRow(sports: List<String>) {
                         Spacer(modifier = Modifier.width(8.dp))
                     }
                     Text(
-                        text = sportInfo?.nameEn ?: sport,
+                        text = sportInfo?.name ?: sport,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         color = color

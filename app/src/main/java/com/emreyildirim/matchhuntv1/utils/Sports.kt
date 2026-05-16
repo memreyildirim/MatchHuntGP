@@ -180,8 +180,8 @@ object Sports {
     )
 
     val motocycle = SportInfo(
-        name = "Motocycle",
-        nameEn = "Motorcycle",
+        name = "Motosiklet",
+        nameEn = "Motocycle",
         iconResId = R.drawable.motocycle,
         color = Color(0xFF90A4AE)
     )

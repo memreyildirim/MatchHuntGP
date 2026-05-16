@@ -36,6 +36,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.emreyildirim.matchhuntv1.ui.components.LocationText
 import com.google.android.gms.maps.model.LatLng
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 
 private const val SPORT_FILTER_ALL = "All"
@@ -144,6 +145,7 @@ fun FindEventScreen(
                 )
 
                 ExposedDropdownMenu(
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface),
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
@@ -157,11 +159,11 @@ fun FindEventScreen(
                     )
                     Sports.allSports.forEach { sport ->
                         DropdownMenuItem(
-                            text = { Text(sport.nameEn) },
+                            text = { Text(sport.name) },
                             onClick = {
-                                selectedSportType = sport.nameEn
+                                selectedSportType = sport.name
                                 expanded = false
-                                viewModel.searchEvents(searchQuery, sport.nameEn.lowercase())
+                                viewModel.searchEvents(searchQuery, sport.name.lowercase())
                             }
                         )
                     }
@@ -296,7 +298,7 @@ fun EventCard(
                             }
 
                             Text(
-                                text = Sports.getSportInfo(event.sportType)?.nameEn ?: event.sportType,
+                                text = Sports.getSportInfo(event.sportType)?.name ?: event.sportType,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center

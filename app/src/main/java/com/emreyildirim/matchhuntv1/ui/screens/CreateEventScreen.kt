@@ -319,17 +319,17 @@ fun CreateEventScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(sportInfo.nameEn) // label: İngilizce ad veya istersen sportInfo.name
+                                    Text(sportInfo.name) // label: İngilizce ad veya istersen sportInfo.name
                                     Icon(
                                         painter = painterResource(id = sportInfo.iconResId),
-                                        contentDescription = sportInfo.nameEn,
+                                        contentDescription = sportInfo.name,
                                         modifier = Modifier.size(24.dp),
                                         tint = null
                                     )
                                 }
                             },
                             onClick = {
-                                selectedSportKey = sportInfo.nameEn.lowercase()   // KEY: "football"
+                                selectedSportKey = sportInfo.name.lowercase()   // KEY: "football"
                                 expanded = false
                             }
                         )
