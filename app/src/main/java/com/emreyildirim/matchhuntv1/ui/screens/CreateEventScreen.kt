@@ -1,6 +1,8 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.PagerState
@@ -50,6 +52,17 @@ fun CreateEventScreen(
         )
     )
 
+    var shouldOpenPickerOnPermissionGranted by remember { mutableStateOf(false) }
+    var showLocationPicker by remember { mutableStateOf(false) }
+    var showPermissionRationaleDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(locationPermissionState.allPermissionsGranted) {
+        if (locationPermissionState.allPermissionsGranted && shouldOpenPickerOnPermissionGranted) {
+            showLocationPicker = true
+            shouldOpenPickerOnPermissionGranted = false
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (!locationPermissionState.allPermissionsGranted) {
             locationPermissionState.launchMultiplePermissionRequest()
@@ -63,7 +76,6 @@ fun CreateEventScreen(
     var eventTime by remember { mutableStateOf("") }
     var eventLocation by remember { mutableStateOf("") }
     var maxParticipants by remember { mutableStateOf("") }
-    var showLocationPicker by remember { mutableStateOf(false) }
     var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
     var selectedSportKey by remember { mutableStateOf("") }
 
@@ -227,6 +239,34 @@ fun CreateEventScreen(
                     onClick = { showLocationPicker = false }
                 ) {
                     Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showPermissionRationaleDialog) {
+        val context = LocalContext.current
+        AlertDialog(
+            modifier = Modifier.background(MaterialTheme.colorScheme.background),
+            onDismissRequest = { showPermissionRationaleDialog = false },
+            title = { Text("Konum İzni Gerekli") },
+            text = { Text("Etkinlik konumunu haritadan seçebilmek için konum izni vermeniz gerekmektedir. Eğer izin penceresi açılmıyorsa, lütfen Ayarlar'dan izni etkinleştirin.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionRationaleDialog = false
+                        try {
+                            val intent = Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:${context.packageName}")
+                            )
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            // Fallback
+                        }
+                    }
+                ) {
+                    Text("Ayarlara Git")
                 }
             }
         )
@@ -421,7 +461,13 @@ fun CreateEventScreen(
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = true,
                 trailingIcon = {
-                    IconButton(onClick = { showLocationPicker = true }) {
+                    IconButton(onClick = {
+                        if (locationPermissionState.allPermissionsGranted) {
+                            showLocationPicker = true
+                        } else {
+                            showPermissionRationaleDialog = true
+                        }
+                    }) {
                         Icon(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = stringResource(R.string.cd_choose_location),

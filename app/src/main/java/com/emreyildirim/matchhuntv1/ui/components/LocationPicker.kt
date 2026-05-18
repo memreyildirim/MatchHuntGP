@@ -1,5 +1,6 @@
 package com.emreyildirim.matchhuntv1.ui.components
 
+import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -12,9 +13,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -29,6 +32,21 @@ fun LocationPicker(
     onLocationSelected: (LatLng) -> Unit,
     initialLocation: LatLng = LatLng(41.0082, 28.9784) // İstanbul koordinatları
 ) {
+    val context = LocalContext.current
+    
+    // Check if location permission is granted to prevent SecurityException crash
+    val hasFineLocation = ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+    
+    val hasCoarseLocation = ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.ACCESS_COARSE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+
+    val hasLocationPermission = hasFineLocation || hasCoarseLocation
+
     var selectedLocation by remember { mutableStateOf(initialLocation) }
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(initialLocation, 12f)
@@ -41,9 +59,9 @@ fun LocationPicker(
         )
     }
 
-    val properties = remember {
+    val properties = remember(hasLocationPermission) {
         MapProperties(
-            isMyLocationEnabled = true
+            isMyLocationEnabled = hasLocationPermission
         )
     }
 

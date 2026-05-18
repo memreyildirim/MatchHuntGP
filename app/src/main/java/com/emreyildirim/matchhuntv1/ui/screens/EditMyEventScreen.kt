@@ -1,6 +1,8 @@
 package com.emreyildirim.matchhuntv1.ui.screens
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.app.TimePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -24,6 +26,8 @@ import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.ui.components.LocationPicker
 import com.emreyildirim.matchhuntv1.ui.theme.ErrorDark
 import com.emreyildirim.matchhuntv1.ui.theme.ErrorLight
+import com.emreyildirim.matchhuntv1.ui.theme.Obsidian
+import com.emreyildirim.matchhuntv1.ui.theme.PureWhite
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
 import com.emreyildirim.matchhuntv1.utils.Sports
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -47,6 +51,17 @@ fun EditMyEventScreen(
         )
     )
 
+    var shouldOpenPickerOnPermissionGranted by remember { mutableStateOf(false) }
+    var showLocationPicker by remember { mutableStateOf(false) }
+    var showPermissionRationaleDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(locationPermissionState.allPermissionsGranted) {
+        if (locationPermissionState.allPermissionsGranted && shouldOpenPickerOnPermissionGranted) {
+            showLocationPicker = true
+            shouldOpenPickerOnPermissionGranted = false
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (!locationPermissionState.allPermissionsGranted) {
             locationPermissionState.launchMultiplePermissionRequest()
@@ -60,7 +75,6 @@ fun EditMyEventScreen(
     var eventTime by remember { mutableStateOf(event.time) }
     var eventLocation by remember { mutableStateOf(event.location) }
     var maxParticipants by remember { mutableStateOf(event.maxParticipants.toString()) }
-    var showLocationPicker by remember { mutableStateOf(false) }
     var selectedLocation by remember { mutableStateOf<LatLng?>(LatLng(event.latitude, event.longitude)) }
     
     val isLoading by viewModel.isLoading.collectAsState()
@@ -85,6 +99,7 @@ fun EditMyEventScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(MaterialTheme.colorScheme.background),
                 title = { Text(stringResource(R.string.edit_my_event_title)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
@@ -107,7 +122,14 @@ fun EditMyEventScreen(
                 value = eventTitle,
                 onValueChange = { eventTitle = it },
                 label = { Text(stringResource(R.string.edit_my_event_field_title)) },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Obsidian,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedLabelColor = Obsidian,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
             )
             
             // Description
@@ -116,7 +138,14 @@ fun EditMyEventScreen(
                 onValueChange = { eventDescription = it },
                 label = { Text(stringResource(R.string.edit_my_event_field_description)) },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 3
+                minLines = 3,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Obsidian,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedLabelColor = Obsidian,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
             )
             
             // Sport Type
@@ -132,7 +161,14 @@ fun EditMyEventScreen(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .menuAnchor()
+                        .menuAnchor(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    )
                 )
                 
                 ExposedDropdownMenu(
@@ -166,7 +202,14 @@ fun EditMyEventScreen(
                             Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.cd_choose_date))
                         }
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    )
                 )
                 
                 OutlinedTextField(
@@ -179,7 +222,14 @@ fun EditMyEventScreen(
                             Icon(Icons.Default.Schedule, contentDescription = stringResource(R.string.cd_choose_time))
                         }
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Obsidian,
+                        unfocusedBorderColor = Color.LightGray,
+                        focusedLabelColor = Obsidian,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
+                    )
                 )
             }
             
@@ -190,11 +240,24 @@ fun EditMyEventScreen(
                 readOnly = true,
                 label = { Text(stringResource(R.string.edit_my_event_field_location)) },
                 leadingIcon = {
-                    IconButton(onClick = { showLocationPicker = true }) {
+                    IconButton(onClick = {
+                        if (locationPermissionState.allPermissionsGranted) {
+                            showLocationPicker = true
+                        } else {
+                            showPermissionRationaleDialog = true
+                        }
+                    }) {
                         Icon(Icons.Default.LocationOn, contentDescription = stringResource(R.string.cd_choose_location))
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Obsidian,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedLabelColor = Obsidian,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
             )
             
             // Max Participants
@@ -218,7 +281,14 @@ fun EditMyEventScreen(
                         )
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Obsidian,
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedLabelColor = Obsidian,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                )
             )
             
             // Update Button
@@ -301,9 +371,11 @@ fun EditMyEventScreen(
                 viewModel.deleteEvent(eventId = event.id)
                              navController.navigateUp()
             },
-                colors = ButtonDefaults.buttonColors(containerColor = ErrorLight),
+                colors = ButtonDefaults.buttonColors(ErrorLight),
                 modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.edit_my_event_delete))
+                Text(stringResource(R.string.edit_my_event_delete),
+                    color = Obsidian
+                )
             }
         }
     }
@@ -425,6 +497,44 @@ fun EditMyEventScreen(
                 // You might want to get the address from the latLng here
                 // For now, we'll just use the existing location
                 showLocationPicker = false
+            }
+        )
+    }
+
+    if (showPermissionRationaleDialog) {
+        val context = LocalContext.current
+        AlertDialog(
+            onDismissRequest = { showPermissionRationaleDialog = false },
+            title = { Text("Konum İzni Gerekli") },
+            text = { Text("Etkinlik konumunu haritadan seçebilmek için konum izni vermeniz gerekmektedir. Eğer izin penceresi açılmıyorsa, lütfen Ayarlar'dan izni etkinleştirin.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionRationaleDialog = false
+                        shouldOpenPickerOnPermissionGranted = true
+                        locationPermissionState.launchMultiplePermissionRequest()
+                    }
+                ) {
+                    Text("İzin İste / Tekrar Dene")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionRationaleDialog = false
+                        try {
+                            val intent = Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:${context.packageName}")
+                            )
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            // Fallback
+                        }
+                    }
+                ) {
+                    Text("Ayarlara Git")
+                }
             }
         )
     }
