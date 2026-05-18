@@ -86,6 +86,34 @@ class SocialFeedViewModel(
             }
         }
     }
+
+    // Harici paylaşılan tek bir postu yüklemek için
+    fun loadSinglePost(postId: String) {
+        if (_isLoading.value) return
+        
+        initialLoadJob?.cancel()
+        initialLoadJob = viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                withNetworkTimeout {
+                    repository.getPostById(postId)
+                }
+                    .onSuccess { post ->
+                        _posts.value = listOf(post)
+                        _hasMorePosts.value = false // Daha fazla post yükleme
+                        isInitialLoadDone = true
+                    }
+                    .onFailure { e ->
+                        _error.value = NetworkUtils.getErrorMessage(e)
+                    }
+            } catch (e: Exception) {
+                _error.value = NetworkUtils.getErrorMessage(e)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
     
     // Daha fazla post yüklemek için
     fun loadMorePosts() {

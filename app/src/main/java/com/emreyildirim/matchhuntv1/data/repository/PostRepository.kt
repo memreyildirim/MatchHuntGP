@@ -101,6 +101,19 @@ class PostRepository {
         }
     }
 
+    suspend fun getPostById(postId: String): Result<Post> {
+        return try {
+            if (BuildConfig.DEBUG) Log.d("PostRepository", "Fetching post by id=$postId")
+            val doc = postsCollection.document(postId).get().await()
+            val post = doc.toObject(Post::class.java)
+                ?: return Result.failure(Exception("Post bulunamadı"))
+            Result.success(post.copy(id = doc.id))
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error fetching post by id=$postId", e)
+            Result.failure(e)
+        }
+    }
+
 
     // Pagination ile postları getiren yeni fonksiyon
     suspend fun getPostsPaginated(lastVisiblePost: Post? = null): Result<Pair<List<Post>, Boolean>> {
