@@ -228,10 +228,12 @@
     <string name="edit_my_event_err_invalid_datetime_format">Geçersiz tarih veya saat formatı!</string>
     <string name="edit_my_event_err_past_date">Geçmiş bir tarih seçilemez!</string>
     <string name="edit_my_event_err_past_time">Geçmiş bir saat seçilemez!</string>
+    <string name="edit_my_event_err_max_participants_invalid">Katılımcı sayısı en az 2, en fazla 15 olmalıdır!</string>
 
     <!-- Create Event -->
     <string name="create_event_heading">Yeni etkinlik oluştur</string>
     <string name="create_event_success_toast">Etkinlik başarıyla oluşturuldu!</string>
+    <string name="create_event_err_max_participants_invalid">Katılımcı sayısı en az 2, en fazla 15 olmalıdır!</string>
     <string name="create_event_err_past_date">Geçmiş bir tarih seçemezsiniz!</string>
     <string name="create_event_err_past_datetime">Geçmiş bir tarih ve saat seçemezsiniz!</string>
     <string name="create_event_err_choose_location">Lütfen bir konum seçin!</string>

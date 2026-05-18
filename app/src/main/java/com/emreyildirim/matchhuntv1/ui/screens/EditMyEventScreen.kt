@@ -71,6 +71,7 @@ fun EditMyEventScreen(
     val invalidDateTimeText = stringResource(R.string.edit_my_event_err_invalid_datetime_format)
     val pastDateText = stringResource(R.string.edit_my_event_err_past_date)
     val pastTimeText = stringResource(R.string.edit_my_event_err_past_time)
+    val invalidParticipantsText = stringResource(R.string.edit_my_event_err_max_participants_invalid)
     
     // Sport Type Dropdown
     var expanded by remember { mutableStateOf(false) }
@@ -197,10 +198,26 @@ fun EditMyEventScreen(
             )
             
             // Max Participants
+            val maxParticipantsInt = maxParticipants.toIntOrNull()
+            val isMaxParticipantsError = maxParticipants.isNotEmpty() && (maxParticipantsInt == null || maxParticipantsInt !in 2..15)
+
             OutlinedTextField(
                 value = maxParticipants,
-                onValueChange = { maxParticipants = it },
+                onValueChange = { newValue ->
+                    if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                        maxParticipants = newValue
+                    }
+                },
                 label = { Text(stringResource(R.string.edit_my_event_field_max_participants)) },
+                isError = isMaxParticipantsError,
+                supportingText = {
+                    if (isMaxParticipantsError) {
+                        Text(
+                            text = invalidParticipantsText,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
             
@@ -210,7 +227,7 @@ fun EditMyEventScreen(
                     if (eventTitle.isBlank() || eventDescription.isBlank() || 
                         selectedSportType.isBlank() || eventDate.isBlank() || 
                         eventTime.isBlank() || eventLocation.isBlank() || 
-                        maxParticipants.isBlank()) {
+                        maxParticipants.isBlank() || isMaxParticipantsError) {
                         // Show error
                         return@Button
                     }
@@ -250,7 +267,7 @@ fun EditMyEventScreen(
                         return@Button
                     }
                     
-                    val maxParticipantsInt = maxParticipants.toIntOrNull() ?: return@Button
+                    val maxParticipantsIntVal = maxParticipants.toIntOrNull() ?: return@Button
                     val latitude = selectedLocation?.latitude ?: return@Button
                     val longitude = selectedLocation?.longitude ?: return@Button
                     
@@ -264,11 +281,16 @@ fun EditMyEventScreen(
                         location = eventLocation,
                         latitude = latitude,
                         longitude = longitude,
-                        maxParticipants = maxParticipantsInt
+                        maxParticipants = maxParticipantsIntVal
                     )
                     
                     navController.navigateUp()
                 },
+                enabled = eventTitle.isNotBlank() && eventDescription.isNotBlank() && 
+                          selectedSportType.isNotBlank() && eventDate.isNotBlank() && 
+                          eventTime.isNotBlank() && eventLocation.isNotBlank() && 
+                          maxParticipants.isNotBlank() && !isMaxParticipantsError && 
+                          !isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.edit_my_event_update))

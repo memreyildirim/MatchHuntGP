@@ -79,6 +79,7 @@ fun CreateEventScreen(
     val pastDateText = stringResource(R.string.create_event_err_past_date)
     val pastDateTimeText = stringResource(R.string.create_event_err_past_datetime)
     val chooseLocationText = stringResource(R.string.create_event_err_choose_location)
+    val invalidParticipantsText = stringResource(R.string.create_event_err_max_participants_invalid)
     val createEventButtonCd = stringResource(R.string.cd_create_event_button)
     
     // Sport Type Dropdown
@@ -439,6 +440,9 @@ fun CreateEventScreen(
             )
             
             // Max Participants
+            val maxParticipantsInt = maxParticipants.toIntOrNull()
+            val isMaxParticipantsError = maxParticipants.isNotEmpty() && (maxParticipantsInt == null || maxParticipantsInt !in 2..15)
+
             OutlinedTextField(
                 value = maxParticipants,
                 onValueChange = { newValue ->
@@ -448,6 +452,15 @@ fun CreateEventScreen(
                 },
                 label = { Text(stringResource(R.string.create_event_field_max_participants)) },
                 modifier = Modifier.fillMaxWidth(),
+                isError = isMaxParticipantsError,
+                supportingText = {
+                    if (isMaxParticipantsError) {
+                        Text(
+                            text = invalidParticipantsText,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = MaterialTheme.shapes.medium,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -512,6 +525,7 @@ fun CreateEventScreen(
                          eventTime.isNotBlank() && 
                          selectedLocation != null && 
                          maxParticipants.isNotBlank() && 
+                         !isMaxParticipantsError &&
                          !isLoading,
                 shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(
