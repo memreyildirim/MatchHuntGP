@@ -44,7 +44,8 @@ private val LightColorScheme = lightColorScheme(
     secondaryContainer = SoftGray,
     onSecondaryContainer = Obsidian,
     tertiary = BrandVolt,
-    onTertiary = Obsidian
+    onTertiary = Obsidian,
+    error = ErrorRed,
 )
 
 @Composable
