@@ -23,7 +23,8 @@ import com.emreyildirim.matchhuntv1.R
 @Composable
 fun EventsScreen(
     viewModel: EventViewModel,
-    onNavigateToProfile: (String) -> Unit
+    onNavigateToProfile: (String) -> Unit,
+    initialEventId: String? = null
 ) {
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -61,7 +62,8 @@ fun EventsScreen(
                 0 -> FindEventScreen(
                     viewModel = viewModel,
                     pagerState = pagerState,
-                    onNavigateToProfile = onNavigateToProfile
+                    onNavigateToProfile = onNavigateToProfile,
+                    initialEventId = initialEventId
                 )
                 1 -> CreateEventScreen(
                     viewModel = viewModel,

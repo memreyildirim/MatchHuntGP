@@ -10,14 +10,26 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.emreyildirim.matchhuntv1.data.repository.UserRepository
 import com.emreyildirim.matchhuntv1.ui.screens.*
 import com.emreyildirim.matchhuntv1.ui.viewmodel.EventViewModel
 import com.emreyildirim.matchhuntv1.ui.viewmodel.MessageViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModelProvider
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 @Composable
 fun AppNavigation() {
@@ -41,56 +53,29 @@ fun AppNavigation() {
         val isProfileComplete = userRepository.isProfileComplete(auth.currentUser!!.uid)
             ?: run {
                 // Eski kullanıcılar (alan yok/null): önce CompleteProfile ekranı
-                navController.navigate("completeProfile") {
-                    popUpTo("splash") { inclusive = true }
+                val currentRoute = navController.currentBackStackEntry?.destination?.route
+                if (currentRoute != "completeProfile") {
+                    navController.navigate("completeProfile") {
+                        popUpTo("splash") { inclusive = true }
+                    }
                 }
                 return
             }
         if (!isProfileComplete) {
-            navController.navigate("createProfile") {
-                popUpTo("splash") { inclusive = true }
-            }
-        } else {
-            navController.navigate("main") {
-                popUpTo("splash") { inclusive = true }
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        if (auth.currentUser != null) {
-            scope.launch {
-                try {
-                    // Kullanıcının e-posta doğrulama durumunu Firestore'dan kontrol et
-                    val userDoc = userRepository.getUserProfileData(auth.currentUser!!.uid)
-                    val isEmailVerified = userDoc?.get("isEmailVerified") as? Boolean ?: false
-                    
-                    if (!isEmailVerified) {
-                        // E-posta doğrulanmamışsa, Firebase'den kontrol et
-                        val firebaseEmailVerified = auth.currentUser?.isEmailVerified ?: false
-                        
-                        if (!firebaseEmailVerified) {
-                            navController.navigate("emailVerification") {
-                                popUpTo("splash") { inclusive = true }
-                            }
-                        } else {
-                            // Firebase'de doğrulanmış ama Firestore'da güncellenmemiş
-                            userRepository.updateEmailVerificationStatus(auth.currentUser!!.uid, true)
-                            checkAndNavigateToNextScreen()
-                        }
-                    } else {
-                        checkAndNavigateToNextScreen()
-                    }
-                } catch (e: Exception) {
-                    // Kullanıcı profili henüz oluşturulmamışsa direkt profil oluşturma ekranına yönlendir
-                    navController.navigate("createProfile") {
-                        popUpTo("splash") { inclusive = true }
-                    }
+            val currentRoute = navController.currentBackStackEntry?.destination?.route
+            if (currentRoute != "createProfile") {
+                navController.navigate("createProfile") {
+                    popUpTo("splash") { inclusive = true }
                 }
             }
         } else {
-            navController.navigate("login") {
-                popUpTo("splash") { inclusive = true }
+            val currentRoute = navController.currentBackStackEntry?.destination?.route
+            if (currentRoute == null || !currentRoute.startsWith("main")) {
+                navController.navigate("main") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            } else {
+                // Zaten deep link ile "main" rotasındayız. Ekranı korumak için hiçbir şey yapmıyoruz.
             }
         }
     }
@@ -101,6 +86,52 @@ fun AppNavigation() {
     ) {
         composable("splash") {
             SplashScreen()
+
+            LaunchedEffect(Unit) {
+                delay(800) // Splash ekranı için şık bir 800ms bekleme süresi
+                if (auth.currentUser != null) {
+                    try {
+                        // Kullanıcının e-posta doğrulama durumunu Firestore'dan kontrol et
+                        val userDoc = userRepository.getUserProfileData(auth.currentUser!!.uid)
+                        val isEmailVerified = userDoc?.get("isEmailVerified") as? Boolean ?: false
+                        
+                        if (!isEmailVerified) {
+                            // E-posta doğrulanmamışsa, Firebase'den kontrol et
+                            val firebaseEmailVerified = auth.currentUser?.isEmailVerified ?: false
+                            
+                            if (!firebaseEmailVerified) {
+                                val currentRoute = navController.currentBackStackEntry?.destination?.route
+                                if (currentRoute != "emailVerification") {
+                                    navController.navigate("emailVerification") {
+                                        popUpTo("splash") { inclusive = true }
+                                    }
+                                }
+                            } else {
+                                // Firebase'de doğrulanmış ama Firestore'da güncellenmemiş
+                                userRepository.updateEmailVerificationStatus(auth.currentUser!!.uid, true)
+                                checkAndNavigateToNextScreen()
+                            }
+                        } else {
+                            checkAndNavigateToNextScreen()
+                        }
+                    } catch (e: Exception) {
+                        val currentRoute = navController.currentBackStackEntry?.destination?.route
+                        if (currentRoute != "createProfile") {
+                            // Kullanıcı profili henüz oluşturulmamışsa direkt profil oluşturma ekranına yönlendir
+                            navController.navigate("createProfile") {
+                                popUpTo("splash") { inclusive = true }
+                            }
+                        }
+                    }
+                } else {
+                    val currentRoute = navController.currentBackStackEntry?.destination?.route
+                    if (currentRoute != "login") {
+                        navController.navigate("login") {
+                            popUpTo("splash") { inclusive = true }
+                        }
+                    }
+                }
+            }
         }
         composable("login") {
             LoginScreen(navController)
@@ -120,8 +151,86 @@ fun AppNavigation() {
         composable("editProfile") {
             EditProfileScreen(navController)
         }
-        composable("main") {
-            MainScreen(navController)
+        composable(
+            route = "main?eventId={eventId}&postId={postId}",
+            arguments = listOf(
+                navArgument("eventId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                navArgument("postId") { type = NavType.StringType; nullable = true; defaultValue = null }
+            ),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "https://matchhunt-17adf.web.app/events/{eventId}" },
+                navDeepLink { uriPattern = "https://matchhunt-17adf.firebaseapp.com/events/{eventId}" },
+                navDeepLink { uriPattern = "https://matchhunt-17adf.web.app/posts/{postId}" },
+                navDeepLink { uriPattern = "https://matchhunt-17adf.firebaseapp.com/posts/{postId}" }
+            )
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getString("eventId")
+            val postId = backStackEntry.arguments?.getString("postId")
+
+            val auth = FirebaseAuth.getInstance()
+
+            if (auth.currentUser == null) {
+                LaunchedEffect(Unit) {
+                    navController.navigate("login") {
+                        popUpTo("main?eventId={eventId}&postId={postId}") { inclusive = true }
+                    }
+                }
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color(0xDFFF00)) // BrandVolt Neon Yellow
+                }
+            } else {
+                var isCheckingProfile by remember { mutableStateOf(true) }
+                var isProfileCompleteState by remember { mutableStateOf(false) }
+
+                LaunchedEffect(auth.currentUser?.uid) {
+                    val uid = auth.currentUser?.uid
+                    if (uid != null) {
+                        val isComplete = userRepository.isProfileComplete(uid) ?: false
+                        isProfileCompleteState = isComplete
+                        isCheckingProfile = false
+                        if (!isComplete) {
+                            navController.navigate("createProfile") {
+                                popUpTo("main?eventId={eventId}&postId={postId}") { inclusive = true }
+                            }
+                        }
+                    } else {
+                        isCheckingProfile = false
+                    }
+                }
+
+                if (isCheckingProfile) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xDFFF00))
+                    }
+                } else if (isProfileCompleteState) {
+                    if (postId != null) {
+                        PostDetailScreen(
+                            postId = postId,
+                            navController = navController,
+                            onBackClick = {
+                                val hasBack = navController.previousBackStackEntry != null && 
+                                              navController.previousBackStackEntry?.destination?.route != "splash"
+                                if (hasBack) {
+                                    navController.navigateUp()
+                                } else {
+                                    navController.navigate("main") {
+                                        popUpTo("main?eventId={eventId}&postId={postId}") { inclusive = true }
+                                    }
+                                }
+                            },
+                            onNavigateToProfile = { userId ->
+                                navController.navigate("user_profile/$userId")
+                            }
+                        )
+                    } else {
+                        MainScreen(
+                            rootNavController = navController,
+                            initialEventId = eventId,
+                            initialPostId = postId
+                        )
+                    }
+                }
+            }
         }
         composable("profile") {
             ProfileScreen(navController)

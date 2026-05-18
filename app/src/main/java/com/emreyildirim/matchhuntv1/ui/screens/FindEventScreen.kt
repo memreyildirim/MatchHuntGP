@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,14 +47,15 @@ private const val SPORT_FILTER_ALL = "All"
 fun FindEventScreen(
     viewModel: EventViewModel,
     pagerState: PagerState,
-    onNavigateToProfile: (String) -> Unit
+    onNavigateToProfile: (String) -> Unit,
+    initialEventId: String? = null
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedSportType by remember { mutableStateOf(SPORT_FILTER_ALL) }
     val displayedSportFilter =
         if (selectedSportType == SPORT_FILTER_ALL) stringResource(R.string.find_event_filter_all) else selectedSportType
     var expanded by remember { mutableStateOf(false) }
-    var selectedEventId by remember { mutableStateOf<String?>(null) }
+    var selectedEventId by remember(initialEventId) { mutableStateOf<String?>(initialEventId) }
     val sheetState = rememberModalBottomSheetState()
     var isScreenVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -402,6 +404,7 @@ fun EventDetailsSheet(
     var creatorProfile by remember { mutableStateOf<UserProfile?>(null) }
     val firestore = FirebaseFirestore.getInstance()
     val isFull = event.participants.size >= event.maxParticipants
+    val context = LocalContext.current
 
     LaunchedEffect(event.createdBy) {
         firestore.collection("users")
@@ -570,23 +573,62 @@ fun EventDetailsSheet(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (isFull) {
-                Text(
-                    text = stringResource(R.string.find_event_quota_full),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
-            } else {
-                // Join/Cancel button
-                Button(
-                    onClick = onJoinClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    enabled = !event.participants.contains("currentUserId")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(
+                                android.content.Intent.EXTRA_TEXT,
+                                "MatchHunt'ta harika bir spor etkinliği buldum! 🏃‍♂️🏆 Sen de katıl:\n\nhttps://matchhunt-17adf.web.app/events/${event.id}"
+                            )
+                        }
+                        context.startActivity(android.content.Intent.createChooser(shareIntent, "Etkinliği Paylaş"))
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Obsidian
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
                 ) {
-                    Text(stringResource(R.string.find_event_send_request))
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Paylaş",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Paylaş")
+                }
+
+                if (isFull) {
+                    Box(
+                        modifier = Modifier.weight(2f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.find_event_quota_full),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = onJoinClick,
+                        modifier = Modifier.weight(2f),
+                        enabled = !event.participants.contains("currentUserId")
+                    ) {
+                        Text(
+                            text = stringResource(R.string.find_event_send_request),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }

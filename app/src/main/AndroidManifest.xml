@@ -35,6 +35,30 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Event Deep Links -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="matchhunt-17adf.web.app" />
+                <data android:host="matchhunt-17adf.firebaseapp.com" />
+                <data android:pathPrefix="/events/" />
+            </intent-filter>
+
+            <!-- Post Deep Links -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="matchhunt-17adf.web.app" />
+                <data android:host="matchhunt-17adf.firebaseapp.com" />
+                <data android:pathPrefix="/posts/" />
+            </intent-filter>
         </activity>
 
         <provider

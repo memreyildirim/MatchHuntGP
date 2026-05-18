@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
@@ -61,7 +62,8 @@ fun SocialFeedScreen(
     onNavigateToMessages: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
     viewModel: SocialFeedViewModel = viewModel(),
-    messageViewModel: MessageViewModel
+    messageViewModel: MessageViewModel,
+    initialPostId: String? = null
 ) {
     val posts by viewModel.posts.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -88,8 +90,12 @@ fun SocialFeedScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadPosts()
+    LaunchedEffect(initialPostId) {
+        if (initialPostId != null) {
+            viewModel.loadSinglePost(initialPostId)
+        } else {
+            viewModel.loadPosts()
+        }
     }
 
     LaunchedEffect(lazyListState) {
@@ -382,7 +388,9 @@ fun PostCard(
             }
 
             Row(
-                modifier = Modifier.padding(start = 8.dp, end = 12.dp, top = 4.dp, bottom = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp, end = 12.dp, top = 4.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = {
@@ -405,6 +413,26 @@ fun PostCard(
                     Icon(Icons.Outlined.ChatBubbleOutline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                 }
                 Text("${post.comments.size}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                IconButton(onClick = {
+                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(
+                            android.content.Intent.EXTRA_TEXT,
+                            "MatchHunt'ta bu gönderiye göz at! 🚀\n\nhttps://matchhunt-17adf.web.app/posts/${post.id}"
+                        )
+                    }
+                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Gönderiyi Paylaş"))
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Paylaş",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
 
             if (post.description.isNotBlank()) {

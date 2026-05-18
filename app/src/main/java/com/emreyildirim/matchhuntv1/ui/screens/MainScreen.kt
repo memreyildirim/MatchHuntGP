@@ -38,7 +38,11 @@ val MutedGray = Color(0xFF95A5A6)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(rootNavController: NavController) {
+fun MainScreen(
+    rootNavController: NavController,
+    initialEventId: String? = null,
+    initialPostId: String? = null
+) {
     val bottomNavController = rememberNavController()
     val viewModel: EventViewModel = viewModel()
     val messageViewModel: MessageViewModel = viewModel() // Paylaşılan instance
@@ -49,6 +53,17 @@ fun MainScreen(rootNavController: NavController) {
         BottomNavItem("my_events", Icons.Outlined.EmojiEvents, stringResource(R.string.bottom_nav_events)),
         BottomNavItem("profile", Icons.Outlined.Person, stringResource(R.string.bottom_nav_profile))
     )
+
+    // Deep Link ile bir etkinlik geldiyse otomatik olarak "events" (Keşfet) tabına geçiş yap
+    LaunchedEffect(initialEventId) {
+        if (initialEventId != null) {
+            bottomNavController.navigate("events") {
+                popUpTo(bottomNavController.graph.startDestinationId) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -69,13 +84,15 @@ fun MainScreen(rootNavController: NavController) {
                         onNavigateToCreatePost = { rootNavController.navigate("createPost") },
                         onNavigateToMessages = { rootNavController.navigate("messages") },
                         onNavigateToProfile = { userId -> rootNavController.navigate("user_profile/$userId") },
-                        messageViewModel = messageViewModel // Paylaşılan instance'ı geç
+                        messageViewModel = messageViewModel, // Paylaşılan instance'ı geç
+                        initialPostId = initialPostId
                     )
                 }
                 composable("events") {
                     EventsScreen(
                         viewModel = viewModel,
-                        onNavigateToProfile = { userId -> rootNavController.navigate("user_profile/$userId") }
+                        onNavigateToProfile = { userId -> rootNavController.navigate("user_profile/$userId") },
+                        initialEventId = initialEventId
                     )
                 }
                 composable("my_events") {
