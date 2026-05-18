@@ -100,15 +100,15 @@
     <string name="my_events_cd_view_profile">Profili Gör</string>
 
     <!-- Complete Profile screen -->
-    <string name="complete_profile_title">Complete The Profile</string>
-    <string name="complete_profile_description">You need to complete your profile information for start using the application,</string>
-    <string name="complete_profile_feature_personal_title">Personal Information</string>
-    <string name="complete_profile_feature_personal_desc">Add name, age and other information</string>
-    <string name="complete_profile_feature_location_title">Location</string>
-    <string name="complete_profile_feature_location_desc">Select your location</string>
-    <string name="complete_profile_feature_sports_title">Interested Sports</string>
-    <string name="complete_profile_feature_sports_desc">Select the interested sports type</string>
-    <string name="complete_profile_button_create">Create Profile</string>
+    <string name="complete_profile_title">Profil Tamamla</string>
+    <string name="complete_profile_description">Uygulamayı kullanabilmek için profilinizi tamamlamanız gerekiyor</string>
+    <string name="complete_profile_feature_personal_title">Kişisel Bilgiler</string>
+    <string name="complete_profile_feature_personal_desc">İsim,yaş ve diğer bilgilerinizi ekleyin</string>
+    <string name="complete_profile_feature_location_title">Konum</string>
+    <string name="complete_profile_feature_location_desc">Konumunuzu seçin</string>
+    <string name="complete_profile_feature_sports_title">İlgili Sporlar</string>
+    <string name="complete_profile_feature_sports_desc">İlgili sporları seçin</string>
+    <string name="complete_profile_button_create">Profil Oluştur</string>
 
     <!-- Common / accessibility -->
     <string name="cd_logo">Logo</string>
