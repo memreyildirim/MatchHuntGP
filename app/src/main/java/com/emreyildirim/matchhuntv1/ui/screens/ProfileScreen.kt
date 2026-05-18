@@ -363,6 +363,29 @@ fun ProfileScreen(navController: NavController) {
                             color = Color.Gray.copy(alpha = 0.7f),
                             modifier = Modifier.clickable { /* Terms link */ }
                         )
+                        Text("|", color = Color.LightGray)
+                        Text(
+                            text = stringResource(R.string.change_feedback),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.Gray.copy(alpha = 0.7f),
+                            modifier = Modifier.clickable {
+                                val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                    data = Uri.parse("mailto:")
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("support@matchhunt.com"))
+                                    putExtra(Intent.EXTRA_SUBJECT, "MatchHunt Geri Bildirim & Destek")
+                                    putExtra(Intent.EXTRA_TEXT, "\n\n---\nKullanıcı: $username\nMatchHunt v1.0")
+                                }
+                                try {
+                                    context.startActivity(Intent.createChooser(intent, "E-posta Gönder"))
+                                } catch (e: Exception) {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.profile_feedback_err_no_email_app),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(

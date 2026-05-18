@@ -335,5 +335,11 @@
     <string name="toast_report_submitted_thanks">Şikayetiniz alındı. Teşekkür ederiz.</string>
     <string name="action_send">Gönder</string>
 
+    <!-- Support & Feedback Card -->
+    <string name="profile_feedback_card_title">Destek &amp; Geri Bildirim</string>
+    <string name="profile_feedback_card_desc">Uygulamayı geliştirmemize yardımcı olmak veya sorunları iletmek için bize ulaşabilirsiniz.</string>
+    <string name="profile_feedback_button">Bize Yazın</string>
+    <string name="profile_feedback_err_no_email_app">E-posta uygulaması bulunamadı!</string>
+
 
 </resources>
