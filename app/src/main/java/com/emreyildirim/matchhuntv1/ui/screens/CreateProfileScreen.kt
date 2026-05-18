@@ -362,7 +362,7 @@ fun CreateProfileScreen(navController: NavController) {
 
                             // 2. Profil Verisi Oluşturma
                             val ageInt = age.toIntOrNull()
-                            if (ageInt == null || ageInt <= 0 || ageInt >= 110) {
+                            if (ageInt == null || ageInt <= 13 || ageInt >= 70) {
                                 throw Exception(invalidAgeText)
                             }
 
