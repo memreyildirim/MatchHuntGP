@@ -1,0 +1,26 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.emreyildirim.matchhunt.app",
+      "sha256_cert_fingerprints": [
+        "BD:CC:F9:7B:A9:10:05:79:57:B7:41:DE:31:E8:E9:26:11:11:24:D7:8F:EA:A2:78:83:2F:BF:AD:5F:AB:9E:88"
+      ]
+    }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.emreyildirim.matchhuntv1",
+      "sha256_cert_fingerprints": [
+        "BD:CC:F9:7B:A9:10:05:79:57:B7:41:DE:31:E8:E9:26:11:11:24:D7:8F:EA:A2:78:83:2F:BF:AD:5F:AB:9E:88"
+      ]
+    }
+  }
+]

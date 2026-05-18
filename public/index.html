@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MatchHunt - Spor Arkadaşını Bul!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --obsidian: #121417;
+            --deep-obsidian: #0E1012;
+            --brand-volt: #DFFF00;
+            --text-light: #FFFFFF;
+            --text-muted: #9EA7AD;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--deep-obsidian) 0%, var(--obsidian) 100%);
+            color: var(--text-light);
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Neon Volt Glow background effect */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 15%;
+            left: 10%;
+            width: 320px;
+            height: 320px;
+            background: radial-gradient(circle, rgba(223, 255, 0, 0.12) 0%, transparent 70%);
+            z-index: 1;
+            filter: blur(60px);
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            bottom: 15%;
+            right: 10%;
+            width: 320px;
+            height: 320px;
+            background: radial-gradient(circle, rgba(223, 255, 0, 0.08) 0%, transparent 70%);
+            z-index: 1;
+            filter: blur(60px);
+        }
+
+        .container {
+            max-width: 460px;
+            width: 90%;
+            background: rgba(18, 20, 23, 0.75);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(223, 255, 0, 0.08);
+            border-radius: 36px;
+            padding: 45px 35px;
+            text-align: center;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+            z-index: 10;
+            transform: translateY(0);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+            border-color: rgba(223, 255, 0, 0.25);
+            box-shadow: 0 40px 80px rgba(223, 255, 0, 0.05);
+        }
+
+        .logo-box {
+            display: inline-flex;
+            background: var(--obsidian);
+            border: 2px solid var(--brand-volt);
+            color: var(--brand-volt);
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: -1px;
+            padding: 10px 28px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 24px rgba(223, 255, 0, 0.15);
+            text-transform: uppercase;
+        }
+
+        .badge {
+            background: rgba(223, 255, 0, 0.08);
+            color: var(--brand-volt);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 6px 14px;
+            border-radius: 100px;
+            display: inline-block;
+            margin-bottom: 24px;
+            letter-spacing: 1.5px;
+            border: 1px solid rgba(223, 255, 0, 0.15);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 900;
+            line-height: 1.25;
+            color: #FFF;
+            margin-bottom: 14px;
+            letter-spacing: -0.5px;
+        }
+
+        p {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text-muted);
+            margin-bottom: 36px;
+            font-weight: 300;
+        }
+
+        .btn-playstore {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: var(--brand-volt);
+            color: var(--deep-obsidian);
+            text-decoration: none;
+            padding: 18px 28px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 16px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 10px 30px rgba(223, 255, 0, 0.2);
+            border: 2px solid transparent;
+        }
+
+        .btn-playstore:hover {
+            background: transparent;
+            color: var(--brand-volt);
+            border-color: var(--brand-volt);
+            transform: scale(1.03);
+            box-shadow: 0 15px 40px rgba(223, 255, 0, 0.3);
+        }
+
+        .btn-playstore svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .footer {
+            margin-top: 36px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.2);
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-box">MatchHunt</div>
+        <div>
+            <span class="badge">SPOR TOPLULUĞU</span>
+        </div>
+        <h1>Spor Arkadaşını Bul & Ekibini Kur!</h1>
+        <p>
+            Harika bir MatchHunt spor etkinliği veya gönderisi paylaşıldı. 
+            Bu içeriği detaylarıyla görüntülemek, yeni spor arkadaşları edinmek ve maçlara katılmak için uygulamamızı indirin.
+        </p>
+        <a href="https://play.google.com/store/apps/details?id=com.emreyildirim.matchhunt.app" class="btn-playstore">
+            <!-- SVG Play Store Icon -->
+            <svg viewBox="0 0 24 24">
+                <path d="M5,3.23V20.77C5,21.1 5.24,21.36 5.54,21.36C5.68,21.36 5.81,21.31 5.92,21.22L17.72,13.56L5.92,4.8C5.81,4.71 5.68,4.66 5.54,4.66C5.24,4.66 5,4.92 5,5.23M18.72,12.9L22,10.7C22.45,10.4 22.45,9.6 22,9.3L18.72,7.1L15.72,10L18.72,12.9Z"/>
+            </svg>
+            Google Play'den İndir
+        </a>
+        <div class="footer">
+            © 2026 MatchHunt. Tüm hakları saklıdır.
+        </div>
+    </div>
+</body>
+</html>
