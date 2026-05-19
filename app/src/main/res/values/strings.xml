@@ -260,7 +260,7 @@
     <string name="find_event_quota_full">Kota doldu</string>
     <string name="find_event_cd_profile_photo">Profil fotoğrafı</string>
     <string name="find_event_display_profile">Profili göster</string>
-    <string name="find_event_send_request">Katıl / iptal talebi gönder</string>
+    <string name="find_event_send_request">Katılma isteği gönder</string>
     <string name="find_event_participate_summary">%1$d/%2$d katılımcı</string>
 
     <!-- Profile review profile screen sections -->
