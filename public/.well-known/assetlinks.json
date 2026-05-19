@@ -7,7 +7,8 @@
       "namespace": "android_app",
       "package_name": "com.emreyildirim.matchhunt.app",
       "sha256_cert_fingerprints": [
-        "BD:CC:F9:7B:A9:10:05:79:57:B7:41:DE:31:E8:E9:26:11:11:24:D7:8F:EA:A2:78:83:2F:BF:AD:5F:AB:9E:88"
+        "BD:CC:F9:7B:A9:10:05:79:57:B7:41:DE:31:E8:E9:26:11:11:24:D7:8F:EA:A2:78:83:2F:BF:AD:5F:AB:9E:88",
+        "41:54:43:06:62:12:B9:02:26:E2:4F:FD:2B:D2:55:1C:C9:4E:07:D8:DD:0A:4D:1B:63:F3:9E:AD:B2:66:42:6F"
       ]
     }
   },
@@ -19,7 +20,8 @@
       "namespace": "android_app",
       "package_name": "com.emreyildirim.matchhuntv1",
       "sha256_cert_fingerprints": [
-        "BD:CC:F9:7B:A9:10:05:79:57:B7:41:DE:31:E8:E9:26:11:11:24:D7:8F:EA:A2:78:83:2F:BF:AD:5F:AB:9E:88"
+        "BD:CC:F9:7B:A9:10:05:79:57:B7:41:DE:31:E8:E9:26:11:11:24:D7:8F:EA:A2:78:83:2F:BF:AD:5F:AB:9E:88",
+        "41:54:43:06:62:12:B9:02:26:E2:4F:FD:2B:D2:55:1C:C9:4E:07:D8:DD:0A:4D:1B:63:F3:9E:AD:B2:66:42:6F"
       ]
     }
   }
