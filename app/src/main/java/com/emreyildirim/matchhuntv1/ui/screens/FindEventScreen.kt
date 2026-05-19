@@ -5,12 +5,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,11 +24,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import com.emreyildirim.matchhuntv1.BuildConfig
 import com.emreyildirim.matchhuntv1.R
+import com.google.firebase.auth.FirebaseAuth
 import com.emreyildirim.matchhuntv1.data.model.Event
 import com.emreyildirim.matchhuntv1.data.model.UserProfile
 import com.emreyildirim.matchhuntv1.ui.theme.Obsidian
@@ -226,8 +230,8 @@ fun FindEventScreen(
             event = selectedEvent,
             viewModel = viewModel,
             onJoinClick = {
-                viewModel.sendJoinRequest(selectedEvent.id, "currentUserId")
-                selectedEventId = null
+                val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                viewModel.sendJoinRequest(selectedEvent.id, uid)
             },
             onDismiss = { selectedEventId = null },
             onNavigateToProfile = onNavigateToProfile
@@ -405,6 +409,9 @@ fun EventDetailsSheet(
     val firestore = FirebaseFirestore.getInstance()
     val isFull = event.participants.size >= event.maxParticipants
     val context = LocalContext.current
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    val isRequested = event.pendingRequests.contains(currentUserId)
+    val isParticipant = event.participants.contains(currentUserId)
 
     LaunchedEffect(event.createdBy) {
         firestore.collection("users")
@@ -573,13 +580,86 @@ fun EventDetailsSheet(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                if (isFull && !isParticipant) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.find_event_quota_full),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                } else if (isParticipant) {
+                    Button(
+                        onClick = { },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = false,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Text(
+                            text = "Bu Etkinliktesiniz",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = onJoinClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = if (isRequested) {
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
+                                contentColor = Color.White
+                            )
+                        } else {
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    ) {
+                        Text(
+                            text = if (isRequested) "İsteği İptal Et" else stringResource(R.string.find_event_send_request),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
+
                 OutlinedButton(
                     onClick = {
                         val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
@@ -591,7 +671,10 @@ fun EventDetailsSheet(
                         }
                         context.startActivity(android.content.Intent.createChooser(shareIntent, "Etkinliği Paylaş"))
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Obsidian
                     ),
@@ -600,35 +683,13 @@ fun EventDetailsSheet(
                     Icon(
                         imageVector = Icons.Default.Share,
                         contentDescription = "Paylaş",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Paylaş")
-                }
-
-                if (isFull) {
-                    Box(
-                        modifier = Modifier.weight(2f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.find_event_quota_full),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                } else {
-                    Button(
-                        onClick = onJoinClick,
-                        modifier = Modifier.weight(2f),
-                        enabled = !event.participants.contains("currentUserId")
-                    ) {
-                        Text(
-                            text = stringResource(R.string.find_event_send_request),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = "Etkinliği Paylaş",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
                 }
             }
         }
