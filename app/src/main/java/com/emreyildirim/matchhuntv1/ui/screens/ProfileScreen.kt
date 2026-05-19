@@ -371,7 +371,7 @@ fun ProfileScreen(navController: NavController) {
                             modifier = Modifier.clickable {
                                 val intent = Intent(Intent.ACTION_SENDTO).apply {
                                     data = Uri.parse("mailto:")
-                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("support@matchhunt.com"))
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("matchhuntgp@gmail.com"))
                                     putExtra(Intent.EXTRA_SUBJECT, "MatchHunt Geri Bildirim & Destek")
                                     putExtra(Intent.EXTRA_TEXT, "\n\n---\nKullanıcı: $username\nMatchHunt v1.0")
                                 }
