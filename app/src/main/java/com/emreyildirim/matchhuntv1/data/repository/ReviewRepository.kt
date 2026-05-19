@@ -93,6 +93,36 @@ class ReviewRepository {
         }
     }
 
+    suspend fun getUserReviewForEventAndUser(reviewerId: String, reviewedUserId: String, eventId: String): Result<Review?> {
+        return try {
+            val review = reviewsCollection
+                .whereEqualTo("reviewerId", reviewerId)
+                .whereEqualTo("reviewedUserId", reviewedUserId)
+                .whereEqualTo("eventId", eventId)
+                .get()
+                .await()
+                .toObjects(Review::class.java)
+                .firstOrNull()
+            Result.success(review)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUserReviewsForEvent(reviewerId: String, eventId: String): Result<List<Review>> {
+        return try {
+            val reviews = reviewsCollection
+                .whereEqualTo("reviewerId", reviewerId)
+                .whereEqualTo("eventId", eventId)
+                .get()
+                .await()
+                .toObjects(Review::class.java)
+            Result.success(reviews)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateUserRatings(userId: String) {
         try {
             val reviews = getUserReviews(userId).map { it.skillRating }

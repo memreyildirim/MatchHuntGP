@@ -38,17 +38,17 @@ class ReviewViewModel : ViewModel() {
             _error.value = null
 
             try {
-                // Önce kullanıcının bu etkinlik için daha önce değerlendirme yapıp yapmadığını kontrol et
-                val existingReview = reviewRepository.getUserReviewForEvent(currentUser.uid, eventId).getOrNull()
-                if (existingReview != null) {
-                    _error.value = "Bu etkinlik için zaten bir değerlendirme yapmışsınız"
-                    return@launch
-                }
-
                 // Etkinlik sahibinin ID'sini al
                 val eventOwnerId = userRepository.getEventOwnerId(eventId).getOrNull()
                 if (eventOwnerId == null) {
                     _error.value = "Etkinlik sahibi bulunamadı"
+                    return@launch
+                }
+
+                // Önce kullanıcının bu etkinlik için daha önce değerlendirme yapıp yapmadığını kontrol et
+                val existingReview = reviewRepository.getUserReviewForEventAndUser(currentUser.uid, eventOwnerId, eventId).getOrNull()
+                if (existingReview != null) {
+                    _error.value = "Bu etkinlik için zaten bir değerlendirme yapmışsınız"
                     return@launch
                 }
 
@@ -145,9 +145,9 @@ class ReviewViewModel : ViewModel() {
 
             try {
                 // Önce kullanıcının bu etkinlik için daha önce değerlendirme yapıp yapmadığını kontrol et
-                val existingReview = reviewRepository.getUserReviewForEvent(currentUser.uid, eventId).getOrNull()
+                val existingReview = reviewRepository.getUserReviewForEventAndUser(currentUser.uid, participantId, eventId).getOrNull()
                 if (existingReview != null) {
-                    _error.value = "Bu etkinlik için zaten bir değerlendirme yapmışsınız"
+                    _error.value = "Bu katılımcıyı bu etkinlik için zaten değerlendirmişsiniz"
                     return@launch
                 }
 

@@ -13,6 +13,9 @@ data class Review(
     val timestamp: Long = System.currentTimeMillis()
 ) {
     // Toplam ortalama puanı hesapla
-    val averageRating: Float
+    var averageRating: Float = 0f
         get() = (skillRating + behaviorRating + teamRating) / 3f
+        set(value) {
+            field = value
+        }
 } 

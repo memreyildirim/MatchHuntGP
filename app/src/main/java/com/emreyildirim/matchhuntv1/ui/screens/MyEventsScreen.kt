@@ -236,11 +236,9 @@ fun MyCreatedEventCard(
 
     // Load reviewed participants
     LaunchedEffect(event.id) {
-        reviewRepository.getUserReviewForEvent(currentUserId, event.id)
-            .onSuccess { review ->
-                if (review != null) {
-                    reviewedParticipants = setOf(review.reviewedUserId)
-                }
+        reviewRepository.getUserReviewsForEvent(currentUserId, event.id)
+            .onSuccess { reviews ->
+                reviewedParticipants = reviews.map { it.reviewedUserId }.toSet()
             }
     }
 
@@ -732,10 +730,10 @@ fun MyParticipatedEventCard(
     val firestore = FirebaseFirestore.getInstance()
     val isFull = event.participants.size >= event.maxParticipants
 
-    // Check if user has already reviewed this event
+    // Check if user has already reviewed this event creator
     LaunchedEffect(event.id) {
         scope.launch {
-            reviewRepository.getUserReviewForEvent(currentUserId, event.id)
+            reviewRepository.getUserReviewForEventAndUser(currentUserId, event.createdBy, event.id)
                 .onSuccess { review ->
                     hasReviewed = review != null
                 }

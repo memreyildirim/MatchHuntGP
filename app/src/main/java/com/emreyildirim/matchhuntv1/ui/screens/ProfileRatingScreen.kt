@@ -91,6 +91,12 @@ fun ProfileRatingScreen(
         }
     }
 
+    LaunchedEffect(error) {
+        error?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
