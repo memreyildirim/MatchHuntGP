@@ -561,31 +561,46 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                     return
                 }
 
-                // Yalnızca yeni eklenen mesajları işle
+                // Yeni eklenen veya değiştirilen mesajları işle
                 val documentChanges = documents.documentChanges
-                val newMessages = documentChanges
-                    .filter { it.type == DocumentChange.Type.ADDED }
+                val validChanges = documentChanges
+                    .filter { it.type == DocumentChange.Type.ADDED || it.type == DocumentChange.Type.MODIFIED }
                     .mapNotNull { change ->
-                        Message.fromFirestore(change.document)
+                        val msg = Message.fromFirestore(change.document)
+                        if (msg != null) Pair(change.type, msg) else null
                     }
-                    .filter { message ->
+                    .filter { (_, message) ->
                         // ChatId kontrolü (ekstra güvenlik)
                         val isValid = message.chatId == currentChatId
                         if (!isValid && BuildConfig.DEBUG) Log.w(TAG, "Message chatId mismatch detected")
                         isValid
                     }
 
-                if (newMessages.isNotEmpty()) {
-                    if (BuildConfig.DEBUG) Log.d(TAG, "Listener received ${newMessages.size} new messages ($type)")
-                    
-                    // Duplicate kontrolü
+                if (validChanges.isNotEmpty()) {
                     val currentMessages = _messages.value.toMutableList()
-                    val existingMessageIds = currentMessages.map { it.id }.toSet()
-                    val uniqueNewMessages = newMessages.filter { it.id !in existingMessageIds }
-                    
-                    if (uniqueNewMessages.isNotEmpty()) {
-                        _messages.value = currentMessages + uniqueNewMessages
-                        if (BuildConfig.DEBUG) Log.d(TAG, "Added ${uniqueNewMessages.size} new messages ($type)")
+                    var listChanged = false
+
+                    for ((changeType, message) in validChanges) {
+                        if (changeType == DocumentChange.Type.ADDED) {
+                            // Yeni eklendiyse ve listede yoksa ekle
+                            if (currentMessages.none { it.id == message.id }) {
+                                currentMessages.add(message)
+                                listChanged = true
+                            }
+                        } else if (changeType == DocumentChange.Type.MODIFIED) {
+                            // Değiştirildiyse (örn: isRead = true), listedekini güncelle
+                            val index = currentMessages.indexOfFirst { it.id == message.id }
+                            if (index != -1) {
+                                currentMessages[index] = message
+                                listChanged = true
+                            }
+                        }
+                    }
+
+                    if (listChanged) {
+                        // Mesajları zamana göre sıralayarak state'i güncelle (yeni eklenenler arkaya)
+                        _messages.value = currentMessages.sortedBy { it.timestamp }
+                        if (BuildConfig.DEBUG) Log.d(TAG, "Processed ${validChanges.size} message changes ($type)")
                     }
                 }
             } catch (e: Exception) {
@@ -631,8 +646,15 @@ class MessageViewModel(private val context: Context? = null) : ViewModel() {
                             for (change in docs.documentChanges) {
                                 val fConv = DbConversation.fromFirestore(change.document) ?: continue
                                 val otherUserId = fConv.participants.firstOrNull { it != currentUserId } ?: continue
+                                var isHidden = otherUserId in hiddenConversations
                                 
-                                if (otherUserId in hiddenConversations) continue
+                                // Eğer konuşma gizliyse ve YENİ MESAJ karşı taraftan geldiyse gizliliği otomatik kaldır
+                                if (isHidden && fConv.lastMessageSenderId == otherUserId) {
+                                    unhideConversation(otherUserId)
+                                    isHidden = false // Artık gizli değil, listeye eklenebilir
+                                }
+                                
+                                if (isHidden) continue
 
                                 when (change.type) {
                                     DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {

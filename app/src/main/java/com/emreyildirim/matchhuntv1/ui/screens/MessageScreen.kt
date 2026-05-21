@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -259,7 +261,7 @@ fun MessageScreen(
                     IconButton(
                         onClick = {
                             if (messageText.isNotBlank() && targetUserId != null) {
-                                viewModel.sendMessage(messageText, targetUserId)
+                                viewModel.sendMessage(messageText.trim(), targetUserId)
                                 messageText = ""
                             }
                         },
@@ -399,12 +401,26 @@ fun ModernMessageItem(message: Message) {
                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
                     color = if (isCurrentUser) BrandVolt else Obsidian
                 )
-                Text(
-                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(message.timestamp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = (if (isCurrentUser) BrandVolt else Obsidian).copy(alpha = 0.5f),
-                    modifier = Modifier.align(Alignment.End).padding(top = 2.dp)
-                )
+                Row(
+                    modifier = Modifier.align(Alignment.End).padding(top = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(message.timestamp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = (if (isCurrentUser) BrandVolt else Obsidian).copy(alpha = 0.5f)
+                    )
+                    
+                    if (isCurrentUser) {
+                        Icon(
+                            imageVector = if (message.isRead) Icons.Default.DoneAll else Icons.Default.Done,
+                            contentDescription = if (message.isRead) "Okundu" else "Gönderildi",
+                            tint = if (message.isRead) BrandVolt else BrandVolt.copy(alpha = 0.5f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
             }
         }
     }
