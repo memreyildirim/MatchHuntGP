@@ -20,28 +20,20 @@ export const onEventCreated = onDocumentCreated(
     const sportType = (eventData?.sportType || "general") as string;
     const normalizedSportType = sportType.toLowerCase().trim();
 
-    // Event oluşturan kullanıcının ID'sini al
+    // Event'in oluşturulduğu şehri al
+    const eventCity = (eventData?.eventCity || "") as string;
+    if (!eventCity) {
+      console.log("Event has no city information (eventCity is empty), skipping notification");
+      return;
+    }
+    const normalizedCity = eventCity.trim();
+
+    // Event oluşturan kullanıcının ID'sini al (kendisine bildirim gitmemesi için)
     const creatorId = eventData?.createdBy || eventData?.creatorId;
     if (!creatorId) {
       console.log("No creatorId found for event", event.params.eventId);
       return;
     }
-
-    // Event oluşturan kullanıcının profilini al ve şehir bilgisini çıkar
-    const creatorSnap = await admin.firestore().doc(`users/${creatorId}`).get();
-    if (!creatorSnap.exists) {
-      console.log("Creator profile not found for", creatorId);
-      return;
-    }
-
-    const creatorCity = (creatorSnap.get("city") as string) || "";
-    if (!creatorCity) {
-      console.log("Creator has no city information, skipping notification");
-      return;
-    }
-
-    // Şehir bilgisini normalize et
-    const normalizedCity = creatorCity.trim();
 
     // COMPOSITE INDEX ile optimize edilmiş query
     // Hem şehir hem de spor filtresi tek query'de
@@ -590,5 +582,60 @@ export const onCommentCreated = onDocumentCreated(
 
     await admin.messaging().send(payload);
     console.log("Comment notification sent to", postOwnerId, "for post", postId);
+  }
+);
+
+// Değerlendirme oluşturulduğunda bildirim gönder
+export const onReviewCreated = onDocumentCreated(
+  {
+    region: "europe-west3",
+    document: "reviews/{reviewId}",
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const reviewData = snap.data() as any;
+
+    const reviewedUserId = reviewData.reviewedUserId as string;
+    const reviewerId = reviewData.reviewerId as string;
+    const reviewerName = reviewData.reviewerName as string || "Bir kullanıcı";
+
+    if (!reviewedUserId || !reviewerId) {
+      console.log("Missing reviewedUserId or reviewerId in review");
+      return;
+    }
+
+    // Kişinin kendine yaptığı değerlendirmeyi (eğer mümkünse) atla
+    if (reviewedUserId === reviewerId) {
+      console.log("User reviewed themselves, skipping notification");
+      return;
+    }
+
+    // Değerlendirilen kişinin FCM token'ını al
+    const userSnap = await admin.firestore().doc(`users/${reviewedUserId}`).get();
+    const fcmToken = userSnap.get("fcmToken") as string | undefined;
+
+    if (!fcmToken) {
+      console.log("No fcmToken for user", reviewedUserId);
+      return;
+    }
+
+    const payload: admin.messaging.Message = {
+      token: fcmToken,
+      notification: {
+        title: "Yeni Değerlendirme",
+        body: `${reviewerName} profiline bir değerlendirme bıraktı.`,
+      },
+      data: {
+        type: "profile_review",
+        reviewId: event.params.reviewId,
+        reviewerId,
+      },
+    };
+
+    await admin.messaging().send(payload);
+    console.log("Review notification sent to", reviewedUserId, "from", reviewerId);
   }
 );
