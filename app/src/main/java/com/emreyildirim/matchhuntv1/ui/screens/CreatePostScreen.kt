@@ -164,7 +164,7 @@ fun CreatePostScreen(
                     onExpandedChange = { expanded = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedSportType.replaceFirstChar { it.uppercase() },
+                        value = Sports.getSportInfo(selectedSportType)?.name ?: "",
                         onValueChange = {},
                         readOnly = true,
                         placeholder = { Text(stringResource(R.string.create_post_pick_sport_hint)) },
@@ -213,7 +213,7 @@ fun CreatePostScreen(
                                     }
                                 },
                                 onClick = {
-                                    selectedSportType = sportInfo.name
+                                    selectedSportType = sportInfo.nameEn.lowercase()
                                     expanded = false
                                 },
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
