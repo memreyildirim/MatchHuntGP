@@ -60,6 +60,7 @@ fun EditProfileScreen(navController: NavController) {
     val fillRequiredFieldsText = stringResource(R.string.edit_profile_fill_required_fields)
     val networkUnavailableDetailText = stringResource(R.string.error_network_unavailable_detail)
     val profileUpdatedText = stringResource(R.string.toast_profile_updated)
+    val invalidAgeText = stringResource(R.string.create_profile_error_invalid_age)
 
     // State Variables
     var username by remember { mutableStateOf("") }
@@ -399,6 +400,11 @@ fun EditProfileScreen(navController: NavController) {
                             }
                             
                             val userId = auth.currentUser?.uid ?: return@launch
+                            
+                            val ageInt = age.toIntOrNull()
+                            if (ageInt == null || ageInt <= 13 || ageInt >= 70) {
+                                throw Exception(invalidAgeText)
+                            }
 
                             var photoUrl = ""
                             val userData = withNetworkTimeout {
@@ -424,7 +430,7 @@ fun EditProfileScreen(navController: NavController) {
                                 userRepository.createUserProfile(
                                     userId = userId,
                                     username = username,
-                                    age = age.toIntOrNull() ?: 0,
+                                    age = ageInt,
                                     city = selectedCity,
                                     sports = selectedSports,
                                     about = about
