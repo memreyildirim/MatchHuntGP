@@ -76,6 +76,7 @@ fun EditMyEventScreen(
     var eventLocation by remember { mutableStateOf(event.location) }
     var maxParticipants by remember { mutableStateOf(event.maxParticipants.toString()) }
     var selectedLocation by remember { mutableStateOf<LatLng?>(LatLng(event.latitude, event.longitude)) }
+    var eventCity by remember { mutableStateOf(event.eventCity) }
     
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -154,7 +155,7 @@ fun EditMyEventScreen(
                 onExpandedChange = { expanded = it }
             ) {
                 OutlinedTextField(
-                    value = selectedSportType,
+                    value = Sports.getSportInfo(selectedSportType)?.name ?: selectedSportType,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(stringResource(R.string.edit_my_event_field_sport)) },
@@ -177,7 +178,7 @@ fun EditMyEventScreen(
                 ) {
                     Sports.allSports.forEach { sport ->
                         DropdownMenuItem(
-                            text = { Text(sport.nameEn) },
+                            text = { Text(sport.name) },
                             onClick = {
                                 selectedSportType = sport.nameEn.lowercase()
                                 expanded = false
@@ -351,7 +352,8 @@ fun EditMyEventScreen(
                         location = eventLocation,
                         latitude = latitude,
                         longitude = longitude,
-                        maxParticipants = maxParticipantsIntVal
+                        maxParticipants = maxParticipantsIntVal,
+                        eventCity = eventCity
                     )
                     
                     navController.navigateUp()
@@ -494,9 +496,28 @@ fun EditMyEventScreen(
         LocationPicker(
             onLocationSelected = { latLng ->
                 selectedLocation = latLng
-                // You might want to get the address from the latLng here
-                // For now, we'll just use the existing location
-                showLocationPicker = false
+                eventLocation = "${latLng.latitude}, ${latLng.longitude}"
+                
+                scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    try {
+                        val geocoder = android.location.Geocoder(context, java.util.Locale("tr", "TR"))
+                        val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
+                        val city = addresses?.firstOrNull()?.adminArea 
+                            ?: addresses?.firstOrNull()?.subAdminArea 
+                            ?: addresses?.firstOrNull()?.locality 
+                            ?: ""
+                        
+                        val cleanCity = city.replace(" Province", "").replace(" İli", "").trim()
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            eventCity = cleanCity
+                            showLocationPicker = false
+                        }
+                    } catch (e: Exception) {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            showLocationPicker = false
+                        }
+                    }
+                }
             }
         )
     }

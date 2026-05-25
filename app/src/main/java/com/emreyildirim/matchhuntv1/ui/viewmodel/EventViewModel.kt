@@ -297,7 +297,8 @@ class EventViewModel : ViewModel() {
         location: String,
         latitude: Double,
         longitude: Double,
-        maxParticipants: Int
+        maxParticipants: Int,
+        eventCity: String
     ) {
         viewModelScope.launch {
             try {
@@ -338,7 +339,8 @@ class EventViewModel : ViewModel() {
                     creatorId = currentUser.uid,
                     creatorUsername = username,
                     participants = listOf(currentUser.uid),
-                    endDate = endDate
+                    endDate = endDate,
+                    eventCity = eventCity
                 )
                 
                 // Add event to Firestore with timeout
@@ -638,7 +640,8 @@ class EventViewModel : ViewModel() {
         location: String,
         latitude: Double,
         longitude: Double,
-        maxParticipants: Int
+        maxParticipants: Int,
+        eventCity: String
     ) {
         viewModelScope.launch {
             try {
@@ -686,7 +689,8 @@ class EventViewModel : ViewModel() {
                     latitude = latitude,
                     longitude = longitude,
                     maxParticipants = maxParticipants,
-                    endDate = endDate
+                    endDate = endDate,
+                    eventCity = eventCity
                 )
                 
                 // Update the event in Firestore

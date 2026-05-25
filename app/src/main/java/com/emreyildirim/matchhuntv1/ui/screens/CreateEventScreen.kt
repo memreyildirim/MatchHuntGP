@@ -78,6 +78,7 @@ fun CreateEventScreen(
     var maxParticipants by remember { mutableStateOf("") }
     var selectedLocation by remember { mutableStateOf<LatLng?>(null) }
     var selectedSportKey by remember { mutableStateOf("") }
+    var eventCity by remember { mutableStateOf("") }
 
 // Ekranda göstereceğimiz label:
     val selectedSportLabel =
@@ -230,7 +231,27 @@ fun CreateEventScreen(
                     onLocationSelected = { location ->
                         selectedLocation = location
                         eventLocation = "${location.latitude}, ${location.longitude}"
-                        showLocationPicker = false
+                        
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                val geocoder = android.location.Geocoder(context, java.util.Locale("tr", "TR"))
+                                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                                val city = addresses?.firstOrNull()?.adminArea 
+                                    ?: addresses?.firstOrNull()?.subAdminArea 
+                                    ?: addresses?.firstOrNull()?.locality 
+                                    ?: ""
+                                
+                                val cleanCity = city.replace(" Province", "").replace(" İli", "").trim()
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    eventCity = cleanCity
+                                    showLocationPicker = false
+                                }
+                            } catch (e: Exception) {
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    showLocationPicker = false
+                                }
+                            }
+                        }
                     }
                 )
             },
@@ -370,7 +391,7 @@ fun CreateEventScreen(
                                 }
                             },
                             onClick = {
-                                selectedSportKey = sportInfo.name.lowercase()   // KEY: "football"
+                                selectedSportKey = sportInfo.nameEn.lowercase()   // KEY: "football"
                                 expanded = false
                             }
                         )
@@ -556,7 +577,8 @@ fun CreateEventScreen(
                             location = eventLocation,
                             latitude = selectedLocation!!.latitude,
                             longitude = selectedLocation!!.longitude,
-                            maxParticipants = maxParticipants.toIntOrNull() ?: 0
+                            maxParticipants = maxParticipants.toIntOrNull() ?: 0,
+                            eventCity = eventCity
                         )
                     }
                 },

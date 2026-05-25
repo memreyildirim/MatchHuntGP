@@ -20,5 +20,6 @@ data class Event(
     val creatorUsername: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val endDate: Date = Date(),
-    val creatorProfileImageUrl: String = ""
+    val creatorProfileImageUrl: String = "",
+    val eventCity: String = ""
 ) 
